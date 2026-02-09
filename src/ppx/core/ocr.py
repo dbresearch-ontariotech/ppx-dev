@@ -9,7 +9,7 @@ import numpy as np
 from pydantic import BaseModel
 import pandas as pd
 
-from .models import OCRDataFrames, StructureV3DataFrames
+from .models import OCROutput, StructureV3Output
 
 memory = Memory("./cache", verbose=0)
 
@@ -21,7 +21,7 @@ def get_ocr_model():
 def ocr(
     np_page: np.ndarray,
     ocr_model: PaddleOCR|None = None,
-) -> OCRDataFrames:
+) -> OCROutput:
     if not ocr_model:
         ocr_model = get_ocr_model()
 
@@ -58,8 +58,8 @@ def parse_ocr_data(data: dict, output_img: np.ndarray):
         columns=['seg_index', 'word_index', 'text', 'x0', 'y0', 'x1', 'y1']
     ).set_index(['seg_index', 'word_index'])
 
-    return OCRDataFrames(
-        output_image=output_img.copy(),
+    return OCROutput(
+        np_page=output_img.copy(),
         texts = df_text,
         words = df_words,
     )
@@ -77,6 +77,9 @@ def structv3(
     output = model.predict(np_page)
     result = output[0]
     data = result.json['res']
+    markdown = result._to_markdown()
+
+    # get the layout
     parsing_res_list = data['parsing_res_list']
     layout_det_res = data['layout_det_res']['boxes']
     parsing_dict = dict()
@@ -106,17 +109,27 @@ def structv3(
             "x1": x1,
             "y1": y1,
         }
+        
         if box in parsing_dict:
             row.update(parsing_dict[box])
         elif box in formula_dict:
             row.update(formula_dict[box])
-        else:
-            raise ValueError(f"Cannot find {box}")
+
         rows.append(row)
 
     df_layout = pd.DataFrame(data=rows)
 
-    return StructureV3DataFrames(
-        output_image=result['doc_preprocessor_res']['output_img'].copy(),
+    # get the markdown
+    np_figures = {
+        k: np.array(v)
+        for k,v in markdown['markdown_images'].items()
+    }
+    markdown_text = markdown['markdown_texts']
+
+    return StructureV3Output(
+        np_page=result['doc_preprocessor_res']['output_img'].copy(),
         layout=df_layout,
+        figures=np_figures,
+        markdown=markdown_text
     )
+
