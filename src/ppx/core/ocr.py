@@ -60,6 +60,7 @@ def parse_ocr_data(data: dict, output_img: np.ndarray):
 
     return OCROutput(
         np_page=output_img.copy(),
+        ocr_result=data,
         texts = df_text,
         words = df_words,
     )
@@ -128,6 +129,7 @@ def structv3(
 
     return StructureV3Output(
         np_page=result['doc_preprocessor_res']['output_img'].copy(),
+        structv3_result=data,
         layout=df_layout,
         figures=np_figures,
         markdown=markdown_text

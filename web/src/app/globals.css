@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+.markdown-panel table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-size: 0.85rem;
+}
+
+.markdown-panel th,
+.markdown-panel td {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.markdown-panel th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+}
+
+.markdown-panel tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.markdown-panel tr:hover {
+  background-color: #eef2ff;
+}

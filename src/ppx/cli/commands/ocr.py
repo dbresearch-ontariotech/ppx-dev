@@ -1,4 +1,5 @@
 import os
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -40,21 +41,26 @@ def RunCommand(
 
             page_dir.mkdir(parents=True, exist_ok=True)
 
+            # Save page image once
+            cv2.imwrite(str(page_dir / "page.png"), cv2.cvtColor(np_page, cv2.COLOR_RGB2BGR))
+
             # OCR
             progress.update(page_task, description=f"Page {page_index}: OCR")
             ocr_result = ocr.ocr(np_page)
-            cv2.imwrite(str(page_dir / "ocr.png"), cv2.cvtColor(ocr_result.np_page, cv2.COLOR_RGB2BGR))
             ocr_result.texts.to_parquet(page_dir / "ocr_texts.parquet")
             ocr_result.words.to_parquet(page_dir / "ocr_words.parquet")
+            (page_dir / "ocr.json").write_text(json.dumps(ocr_result.ocr_result, ensure_ascii=False, indent=2))
 
             # Structure V3
             progress.update(page_task, description=f"Page {page_index}: StructureV3")
             sv3_result = ocr.structv3(np_page)
-            cv2.imwrite(str(page_dir / "structv3.png"), cv2.cvtColor(sv3_result.np_page, cv2.COLOR_RGB2BGR))
             sv3_result.layout.to_parquet(page_dir / "structv3_layout.parquet")
-            (page_dir / "structv3_markdown.md").write_text(sv3_result.markdown)
+            (page_dir / "structv3.json").write_text(json.dumps(sv3_result.structv3_result, ensure_ascii=False, indent=2))
+            md_dir = page_dir / "markdown_output"
+            md_dir.mkdir(parents=True, exist_ok=True)
+            (md_dir / "markdown.md").write_text(sv3_result.markdown)
             for name, np_fig in sv3_result.figures.items():
-                fig_path = page_dir / name
+                fig_path = md_dir / name
                 fig_path.parent.mkdir(parents=True, exist_ok=True)
                 cv2.imwrite(str(fig_path), cv2.cvtColor(np_fig, cv2.COLOR_RGB2BGR))
 
@@ -77,7 +83,7 @@ def AnnotateCommand(
         raise typer.Exit(1)
 
     # Load base image
-    image_path = page_dir / "ocr.png"
+    image_path = page_dir / "page.png"
     np_image = cv2.cvtColor(cv2.imread(str(image_path)), cv2.COLOR_BGR2RGB)
 
     # Load parquet source

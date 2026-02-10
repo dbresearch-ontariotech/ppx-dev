@@ -8,24 +8,25 @@
 
 - The artifacts are:
 
+  - the page image as "page.png"
+
   from OCROutput:
-  - the page image as "ocr.png"
   - the texts dataframe as "ocr_texts.parquet"
   - the words dataframe as "ocr_words.parquet"
 
   from StructV3Output:
-  - the page image as "structv3.png"
   - the layout dataframe as "structv3_layout.parquet"
-  - the `figures:dict[str, np.ndarray]` as files named by the key, and the image as defined by the `np.ndarray` value.
-  - the markdown as "structv3_markdown.md"
+  - the markdown and figures in "markdown_output/":
+    - "markdown_output/markdown.md"
+    - "markdown_output/imgs/..." (extracted figure images)
 
 # Show annotated views
 
-`ppx ocr annotate -o <output_file> --source ... --query ... <pdf_file> <page_number>`
+`ppx ocr annotate -o <output_file> --source ... --query ... <page_data_folder>`
 
 - `output_file` is default to "<pdf_basename>_<page_number>.png"
 
-- Draws rectangles on top of the "ocr.png" in the pdf page ocr output folder.
+- Draws rectangles on top of the "page.png" in the pdf page ocr output folder.
 
 - the rectangles are given by the rows selected from the dataframe of the source.  The source is the basename of the parquet file.  All parquert files contain "x0", "x1", "y0", "y1" columns which are the rectangle corners.
 
