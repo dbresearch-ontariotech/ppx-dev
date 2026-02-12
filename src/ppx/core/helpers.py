@@ -28,10 +28,16 @@ def annotate(
     np_image: np.ndarray,
     df_annotation: pd.DataFrame,
     color = None,                   # BGR encoding of color
+    label_column: str | None = None,
 ):
     color = color or (0, 0, 255)
     overlay = np_image.copy()
-    for row in df_annotation[['x0', 'y0', 'x1', 'y1']].itertuples():
+
+    cols = ['x0', 'y0', 'x1', 'y1']
+    if label_column:
+        cols.append(label_column)
+
+    for row in df_annotation[cols].itertuples():
         x0, y0, x1, y1 = int(row.x0), int(row.y0), int(row.x1), int(row.y1)
         cv2.rectangle(
             overlay,
@@ -41,5 +47,17 @@ def annotate(
             thickness=2,
             lineType=cv2.LINE_AA,
         )
+        if label_column:
+            label = str(getattr(row, label_column))
+            cv2.putText(
+                overlay,
+                label,
+                (x0, y0 - 4),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                1,
+                cv2.LINE_AA,
+            )
     return overlay
 

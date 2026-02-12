@@ -75,6 +75,7 @@ def AnnotateCommand(
     output_file: Path = typer.Option(None, "-o", help="Output image file"),
     source: str = typer.Option("ocr_texts", "--source", help="Parquet file basename (without .parquet)"),
     query: str | None = typer.Option(None, "-q", help="Pandas query to filter rows"),
+    label_column: str | None = typer.Option(None, "-l", help="Column name to use as text label on each bounding box"),
 ):
     import pandas as pd
 
@@ -97,7 +98,7 @@ def AnnotateCommand(
         df = df.query(query)
 
     # Annotate
-    annotated = helpers.annotate(np_image, df, (0, 0, 255))
+    annotated = helpers.annotate(np_image, df, (0, 0, 255), label_column=label_column)
 
     # Save
     if output_file is None:

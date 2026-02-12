@@ -18,3 +18,7 @@ cache/
 web/node_modules/
 web/.next/
 web/out/
+
+# Dev server PIDs
+.dev.pids
+.playwright-mcp

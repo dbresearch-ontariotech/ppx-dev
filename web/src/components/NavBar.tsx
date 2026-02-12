@@ -40,6 +40,7 @@ export default function NavBar() {
       <a href="/" className="font-bold text-lg">
         PPX
       </a>
+      <span className="text-xs text-gray-400 font-mono">{process.env.NEXT_PUBLIC_BUILD_VERSION}</span>
       {crumbs.length > 0 && (
         <>
           <span className="text-gray-300 mx-1">/</span>

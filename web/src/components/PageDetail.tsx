@@ -53,6 +53,7 @@ export default function PageDetail({
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const dragging = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (document) {
@@ -83,19 +84,30 @@ export default function PageDetail({
   const hasNext = pageIndex >= 0 && pageIndex < pages.length - 1;
   const goTo = (p: number) => router.push(`/documents/${document}/pages/${p}`);
 
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+
   const onMouseDown = useCallback(() => {
     dragging.current = true;
+    setIsDragging(true);
   }, []);
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (!dragging.current || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      const pct = ((e.clientX - rect.left) / rect.width) * 100;
-      setSplitPercent(Math.min(80, Math.max(20, pct)));
+      const pct = Math.min(80, Math.max(20, ((e.clientX - rect.left) / rect.width) * 100));
+      if (leftRef.current) leftRef.current.style.width = `${pct}%`;
+      if (rightRef.current) rightRef.current.style.width = `${100 - pct}%`;
     };
     const onMouseUp = () => {
+      if (!dragging.current) return;
       dragging.current = false;
+      setIsDragging(false);
+      if (!containerRef.current || !leftRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const leftRect = leftRef.current.getBoundingClientRect();
+      setSplitPercent((leftRect.width / rect.width) * 100);
     };
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
@@ -123,9 +135,10 @@ export default function PageDetail({
       <div
         ref={containerRef}
         className="flex h-full"
-        style={{ userSelect: dragging.current ? "none" : undefined }}
+        style={{ userSelect: isDragging ? "none" : undefined }}
       >
         <div
+          ref={leftRef}
           className="border rounded-lg overflow-hidden bg-white flex flex-col p-2"
           style={{ width: `${splitPercent}%` }}
         >
@@ -181,14 +194,16 @@ export default function PageDetail({
         />
 
         {mdHtml === null ? (
-          <pre
+          <div
+            ref={rightRef}
             className="border rounded-lg bg-white p-6 text-sm font-mono whitespace-pre-wrap overflow-y-auto"
             style={{ width: `${100 - splitPercent}%` }}
           >
             <span className="text-gray-500">Loading markdown...</span>
-          </pre>
+          </div>
         ) : (
-          <pre
+          <div
+            ref={rightRef}
             className="markdown-panel border rounded-lg bg-white p-6 text-sm font-mono whitespace-pre-wrap overflow-y-auto [&_img]:!w-[80%] [&_img]:h-auto"
             style={{ width: `${100 - splitPercent}%` }}
             dangerouslySetInnerHTML={{ __html: mdHtml }}

@@ -8,6 +8,7 @@ from joblib.memory import Memory
 import numpy as np
 from pydantic import BaseModel
 import pandas as pd
+import cv2
 
 from .models import OCROutput, StructureV3Output
 
@@ -120,9 +121,10 @@ def structv3(
 
     df_layout = pd.DataFrame(data=rows)
 
-    # get the markdown
+    # get the markdown images.  These images are in BGR encoding, so convert them to RGB
+    # to be consistent with the page image.
     np_figures = {
-        k: np.array(v)
+        k: cv2.cvtColor(np.array(v), cv2.COLOR_BGR2RGB)
         for k,v in markdown['markdown_images'].items()
     }
     markdown_text = markdown['markdown_texts']
