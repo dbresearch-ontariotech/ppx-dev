@@ -43,3 +43,27 @@ def run(
             typer.echo(f"    {status.message}  ({status.size:,} B)")
 
     typer.echo("\nDone.")
+
+@app.command(name="build-layout-tree")
+def BuildLayoutTreeCommand(
+    path: Annotated[Path, typer.Argument(help="Page directory containing parquet files")],
+    overwrite: Annotated[bool, typer.Option("--overwrite", help="Overwrite existing output")] = False,
+):
+    """Build the layout tree from a page directory and save as layout-tree.parquet."""
+    import pandas as pd
+    from ppx.core.storage import _load_parquet
+    from ppx.core.layout.layout_tree import build_layout_tree
+
+    dest = path / "layout-tree.parquet"
+    if dest.exists() and not overwrite:
+        typer.echo(f"Skipping {dest} (already exists)")
+        return
+
+    regions = _load_parquet(path / "regions.parquet")
+    blocks  = _load_parquet(path / "blocks.parquet")
+    lines   = _load_parquet(path / "line_tokens.parquet")
+    words   = _load_parquet(path / "word_tokens.parquet")
+
+    tree = build_layout_tree(regions, blocks, lines, words)
+    tree.to_parquet(dest, engine="fastparquet", index=False)
+    typer.echo(f"Saved {dest} ({dest.stat().st_size:,} B, {len(tree)} nodes)")
