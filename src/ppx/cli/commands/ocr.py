@@ -4,7 +4,6 @@ from typing import Annotated
 
 app = typer.Typer()
 
-
 @app.command()
 def run(
     pdf_file: Annotated[Path, typer.Argument(help="PDF file to process")],
@@ -25,6 +24,12 @@ def run(
     typer.echo(f"Pages:  {n}")
 
     for i, np_page in enumerate(doc.pages):
+        page_dir = doc_dir / str(i)
+        if page_dir.exists() and not overwrite:
+            typer.echo(f"\n[page {i}/{n - 1}]")
+            typer.echo("  Skipping (exists)")
+            continue
+
         typer.echo(f"\n[page {i}/{n - 1}]")
 
         typer.echo("  Running OCR ...")
@@ -34,7 +39,7 @@ def run(
         ll, md = get_structv3(np_page, page_index=i)
 
         typer.echo("  Storing ...")
-        for status in store(doc_dir, vtl, ll, md, overwrite=overwrite):
+        for status in store(page_dir, vtl, ll, md):
             typer.echo(f"    {status.message}  ({status.size:,} B)")
 
     typer.echo("\nDone.")

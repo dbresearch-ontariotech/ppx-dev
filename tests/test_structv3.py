@@ -6,9 +6,9 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_structv3_first_three_pages():
-    pages = list(get_page_tensors(FIXTURES / "paper.pdf"))
+    doc = get_page_tensors(FIXTURES / "paper.pdf")
     model = get_structv3_model()
-    for page in pages[0:5]:
+    for page in doc.pages[0:5]:
         output = model.predict(page)
         try:
             output[0].save_all(save_path="./output")

@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from ppx.core.storage import store, load, WriteStatus
-from ppx.core.types import VisualTokenLayer, LayoutLayers, MarkdownDocument
+from ppx.core.types import VisualTokenLayers, LayoutLayers, MarkdownDocument
 
 FIGURES = {
     "fig_0.png": np.random.randint(0, 256, (32, 32, 3), dtype=np.uint8),
@@ -41,7 +41,7 @@ def make_fixtures(page_index: int = 0):
         "text": ["E=mc^2"], "formula_region_id": [0],
     })
 
-    vtl = VisualTokenLayer(
+    vtl = VisualTokenLayers(
         np_page=np_page, page_index=page_index,
         line_tokens=line_tokens, word_tokens=word_tokens,
     )
@@ -180,7 +180,7 @@ def test_load_returns_correct_types(tmp_path):
     vtl, ll, md = make_fixtures()
     list(store(tmp_path, vtl, ll, md))
     vtl2, ll2, md2 = load(tmp_path / "0")
-    assert isinstance(vtl2, VisualTokenLayer)
+    assert isinstance(vtl2, VisualTokenLayers)
     assert isinstance(ll2, LayoutLayers)
     assert isinstance(md2, MarkdownDocument)
 

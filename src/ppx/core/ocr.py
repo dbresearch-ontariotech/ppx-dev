@@ -3,137 +3,197 @@ from pathlib import Path
 import os
 os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"
 from paddleocr import PaddleOCR, PPStructureV3
+from paddlex.inference.pipelines.layout_parsing.layout_objects import LayoutBlock
+from paddlex.inference.pipelines.layout_parsing.result_v2 import LayoutParsingResultV2
+from paddlex.inference.pipelines.table_recognition.result import SingleTableRecognitionResult
+from paddlex.inference.models.formula_recognition.result import FormulaRecResult
 from functools import cache
 from joblib.memory import Memory
 import numpy as np
-from pydantic import BaseModel
 import pandas as pd
+from pandera.typing import DataFrame
 import cv2
 
-from .models import OCROutput, StructureV3Output
+from .types import (
+    VisualTokenLayers,
+    LayoutLayers,
+    BlockSchema,
+    FormulaSchema,
+    LayoutSchema,
+    MarkdownDocument,
+)
 
-memory = Memory("./cache", verbose=0)
+memory = Memory(location=None, verbose=0)
 
 @cache
 def get_ocr_model():
     return PaddleOCR(use_doc_unwarping=False)
 
 @memory.cache
-def ocr(
+def get_visual_tokens(
     np_page: np.ndarray,
     ocr_model: PaddleOCR|None = None,
-) -> OCROutput:
+    page_index: int = 0,
+) -> VisualTokenLayers:
     if not ocr_model:
         ocr_model = get_ocr_model()
 
     output = ocr_model.predict(np_page, return_word_box=True)
     result = output[0]
-    # result.save_all(save_path="./output")
-    data = result.json['res']
-    return parse_ocr_data(data, result['doc_preprocessor_res']['output_img'])
-    
-def parse_ocr_data(data: dict, output_img: np.ndarray):
-    rec_texts = data['rec_texts']
-    rec_scores = data['rec_scores']
-    rec_boxes = data['rec_boxes']
-    rec_polys = data['rec_polys']
-    word_boxes = data['text_word_boxes']
-    word_text = data['text_word']
+    np_page = result['doc_preprocessor_res']['output_img']
 
-    # text dataframe (text, score, x0, y0, x1, y0)
-    rows = []
-    for i, (text, score, box) in enumerate(zip(rec_texts, rec_scores, rec_boxes)):
-        rows.append([i, text, score] + box)
-    df_text = pd.DataFrame(
-        data=rows,
-        columns=['seg_index', 'text', 'score', 'x0', 'y0', 'x1', 'y1']
-    ).set_index('seg_index')
-    
-    # word dataframe (i, j) -> (text, x0, y0, x1, y1)
-    rows = []
-    for i, (words, boxes) in enumerate(zip(word_text, word_boxes)):
-        for j, (text, box) in enumerate(zip(words, boxes)):
-            rows.append([i, j, text] + box)
-    df_words = pd.DataFrame(
-        data=rows,
-        columns=['seg_index', 'word_index', 'text', 'x0', 'y0', 'x1', 'y1']
-    ).set_index(['seg_index', 'word_index'])
+    boxes = result['rec_boxes']
+    line_tokens = pd.DataFrame({
+        "x0": boxes[:, 0],
+        "y0": boxes[:, 1],
+        "x1": boxes[:, 2],
+        "y1": boxes[:, 3],
+        "text": pd.Series(result['rec_texts']),
+        'score': pd.Series(result['rec_scores']),
+    })
 
-    return OCROutput(
-        np_page=output_img.copy(),
-        ocr_result=data,
-        texts = df_text,
-        words = df_words,
+    rows = []
+    for line_idx, (word_boxes, word_texts) in enumerate(zip(result['text_word_boxes'], result['text_word'])):
+        for ((x0, y0, x1, y1), text) in zip(word_boxes.tolist(), word_texts):
+            rows.append({
+                'x0': x0,
+                'y0': y0,
+                'x1': x1,
+                'y1': y1,
+                'text': text,
+                'line_index': line_idx,
+            })
+    word_tokens = pd.DataFrame(rows)
+    
+    return VisualTokenLayers(
+        np_page=np_page,
+        page_index=page_index,
+        line_tokens=line_tokens,
+        word_tokens=word_tokens,
     )
+
 
 @cache
 def get_structv3_model() -> PPStructureV3:
     return PPStructureV3(use_doc_unwarping=False)
 
+def schema_to_columns(schema)->list[str]:
+    return list(schema.to_schema().columns.keys())
+
+def prefix_index(df: pd.DataFrame, prefix: str)->pd.DataFrame:
+    df = df.copy()
+    df.index = df.index.map(lambda x: f"{prefix}_{x}")
+    return df
+
+def parse_layout(result: LayoutParsingResultV2) -> DataFrame[LayoutSchema]:
+    rows = []
+    for box in result['layout_det_res']['boxes']:
+        x0, y0, x1, y1 = list(map(int, box['coordinate']))
+        score = box['score']
+        label = box['label']
+        rows.append({
+            'x0': x0,
+            'y0': y0,
+            'x1': x1,
+            'y1': y1,
+            'label': label,
+            'score': score,
+        })
+    return prefix_index(pd.DataFrame(rows, columns=schema_to_columns(LayoutSchema)), "layout")
+
+def parse_regions(result: LayoutParsingResultV2) -> DataFrame[LayoutSchema]:
+    rows = []
+    for region in result['region_det_res']['boxes']:
+        x0, y0, x1, y1 = list(map(int, region['coordinate']))
+        score = region['score']
+        label = region['label']
+        rows.append({
+            'x0': x0,
+            'y0': y0,
+            'x1': x1,
+            'y1': y1,
+            'label': label,
+            'score': score,
+        })
+    return prefix_index(pd.DataFrame(rows, columns=schema_to_columns(LayoutSchema)), "region")
+
+def parse_blocks(result: LayoutParsingResultV2) -> tuple[DataFrame[BlockSchema], dict[int, np.ndarray]]:
+    block: LayoutBlock
+    rows = []
+    images = {}
+    for block in result['parsing_res_list']:
+        x0, y0, x1, y1 = block.bbox
+        rows.append({
+            'x0': x0,
+            'y0': y0,
+            'x1': x1,
+            'y1': y1,
+            'label': block.label,
+            'order': pd.NA if block.order_index is None else int(block.order_index),
+            'content': block.content,
+            'block_index': block.index,
+        })
+        if block.image is not None:
+            images[block.index] = block.image['img']
+
+    return prefix_index(pd.DataFrame(rows, columns=schema_to_columns(BlockSchema)), "block"), images
+
+def parse_table_layer(result: LayoutParsingResultV2):
+    res: SingleTableRecognitionResult
+    for res in result['table_res_list']:
+        pass
+    raise Exception("Not implemented")
+
+def parse_formulas(result: LayoutParsingResultV2) -> tuple[DataFrame[FormulaSchema], dict[int, np.ndarray]]:
+    res: FormulaRecResult
+    rows = []
+    images = {}
+    for res in result['formula_res_list']:
+        x0, y0, x1, y1 = list(map(int, res['dt_polys']))
+        rows.append({
+            'x0': x0,
+            'y0': y0,
+            'x1': x1,
+            'y1': y1,
+            'text': res['rec_formula'],
+            'formula_region_id': res['formula_region_id'],
+        })
+        if res['input_img'] is not None:
+            images[res['formula_region_id']] = res['input_img']
+    return prefix_index(pd.DataFrame(rows, columns=schema_to_columns(FormulaSchema)), "formula"), images
+
 @memory.cache
-def structv3(
+def get_structv3(
     np_page: np.ndarray,
     model: PPStructureV3|None = None,
-):
+    page_index: int = 0,
+)->tuple[LayoutLayers, MarkdownDocument]:
     model = model or get_structv3_model()
-    output = model.predict(np_page)
+    output = model.predict(np_page, return_word_box=False)
     result = output[0]
-    data = result.json['res']
-    markdown = result._to_markdown()
 
-    # get the layout
-    parsing_res_list = data['parsing_res_list']
-    layout_det_res = data['layout_det_res']['boxes']
-    parsing_dict = dict()
-    for block in parsing_res_list:
-        box = tuple(block['block_bbox'])
-        parsing_dict[box] = {
-            "content": block['block_content'],
-            "order": block['block_order'] or pd.NA
-        }
-    formula_dict = dict()
-    for entry in data.get('formula_res_list', []):
-        box = tuple(map(int, entry['dt_polys']))
-        formula_dict[box] = {
-            "content": entry['rec_formula'],
-            "order": pd.NA,
-        }
-    
-    rows = []
-    for entry in layout_det_res:
-        box = tuple(map(int, entry['coordinate']))
-        x0, y0, x1, y1 = box
-        row = {
-            "label": entry['label'],
-            "cls_id": entry['cls_id'],
-            "x0": x0,
-            "y0": y0,
-            "x1": x1,
-            "y1": y1,
-        }
-        
-        if box in parsing_dict:
-            row.update(parsing_dict[box])
-        elif box in formula_dict:
-            row.update(formula_dict[box])
+    np_page = result['doc_preprocessor_res']['output_img'].copy()
 
-        rows.append(row)
+    region_df = parse_regions(result)
+    layout_df = parse_layout(result)
+    block_df, _ = parse_blocks(result)
+    formula_df, _ = parse_formulas(result)
 
-    df_layout = pd.DataFrame(data=rows)
-
-    # get the markdown images.  These images are in BGR encoding, so convert them to RGB
-    # to be consistent with the page image.
-    np_figures = {
-        k: cv2.cvtColor(np.array(v), cv2.COLOR_BGR2RGB)
-        for k,v in markdown['markdown_images'].items()
-    }
-    markdown_text = markdown['markdown_texts']
-
-    return StructureV3Output(
-        np_page=result['doc_preprocessor_res']['output_img'].copy(),
-        structv3_result=data,
-        layout=df_layout,
-        figures=np_figures,
-        markdown=markdown_text
+    layout_layers = LayoutLayers(
+        np_page=np_page,
+        page_index=page_index,
+        regions=region_df,
+        layout=layout_df,
+        blocks=block_df,
+        formulas=formula_df,
     )
 
+    markdown = result._to_markdown()
+    figures = dict()
+    for k,v in markdown['markdown_images'].items():
+        figures[k] = cv2.cvtColor(np.array(v), cv2.COLOR_BGR2RGB)
+    markdown_doc = MarkdownDocument(
+        markdown=markdown['markdown_texts'],
+        figures=figures,
+    )
+    return layout_layers, markdown_doc

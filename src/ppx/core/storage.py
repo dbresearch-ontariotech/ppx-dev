@@ -5,7 +5,7 @@ from typing import Generator
 import numpy as np
 import pandas as pd
 from PIL import Image
-from .types import LayoutLayers, MarkdownDocument, VisualTokenLayer
+from .types import LayoutLayers, MarkdownDocument, VisualTokenLayers
 
 
 @dataclass
@@ -23,9 +23,11 @@ def _write_image(arr: np.ndarray, dest: Path) -> WriteStatus:
 
 
 def _write_parquet(df: pd.DataFrame, dest: Path, label: str) -> WriteStatus:
-    df.to_parquet(dest, engine="fastparquet")
+    df.reset_index().to_parquet(dest, engine="fastparquet")
     return WriteStatus(path=dest, size=dest.stat().st_size, message=label)
 
+def _load_parquet(dest: Path) -> pd.DataFrame:
+    return pd.read_parquet(dest, engine="fastparquet").set_index('index')
 
 def _write_markdown(md: MarkdownDocument, markdown_dir: Path) -> Generator[WriteStatus, None, None]:
     markdown_dir.mkdir(parents=True, exist_ok=True)
@@ -48,47 +50,42 @@ def _load_markdown(markdown_dir: Path) -> MarkdownDocument:
 
 
 def store(
-    path: Path,
-    visual_token_layer: VisualTokenLayer,
+    page_dir: Path,
+    visual_token_layers: VisualTokenLayers,
     layout_layers: LayoutLayers,
     markdown_document: MarkdownDocument,
-    overwrite: bool = False,
 ) -> Generator[WriteStatus, None, None]:
-    if visual_token_layer.page_index != layout_layers.page_index:
+    if visual_token_layers.page_index != layout_layers.page_index:
         raise ValueError(
-            f"page_index mismatch: visual_token_layer={visual_token_layer.page_index}, "
+            f"page_index mismatch: visual_token_layer={visual_token_layers.page_index}, "
             f"layout_layers={layout_layers.page_index}"
         )
 
-    page_index = visual_token_layer.page_index
-    page_dir = path / str(page_index)
-
-    if page_dir.exists() and not overwrite:
-        raise FileExistsError(f"{page_dir} already exists; pass overwrite=True to overwrite")
-
     page_dir.mkdir(parents=True, exist_ok=True)
 
-    yield _write_image(visual_token_layer.np_page, page_dir / "np_page.png")
-    yield _write_parquet(visual_token_layer.line_tokens, page_dir / "line_tokens.parquet", "line_tokens.parquet")
-    yield _write_parquet(visual_token_layer.word_tokens, page_dir / "word_tokens.parquet", "word_tokens.parquet")
+    yield _write_image(visual_token_layers.np_page, page_dir / "np_page.png")
+    yield _write_parquet(visual_token_layers.line_tokens, page_dir / "line_tokens.parquet", "line_tokens.parquet")
+    yield _write_parquet(visual_token_layers.word_tokens, page_dir / "word_tokens.parquet", "word_tokens.parquet")
+    yield _write_parquet(layout_layers.regions, page_dir / "regions.parquet", "regions.parquet")
     yield _write_parquet(layout_layers.layout, page_dir / "layout.parquet", "layout.parquet")
     yield _write_parquet(layout_layers.blocks, page_dir / "blocks.parquet", "blocks.parquet")
     yield _write_parquet(layout_layers.formulas, page_dir / "formulas.parquet", "formulas.parquet")
     yield from _write_markdown(markdown_document, page_dir / "markdown")
 
 
-def load(path: Path) -> tuple[VisualTokenLayer, LayoutLayers, MarkdownDocument]:
-    page_dir = path
-    page_index = int(path.name)
+def load(path: Path) -> tuple[VisualTokenLayers, LayoutLayers, MarkdownDocument]:
+    page_dir = Path(path)
+    page_index = int(page_dir.name)
 
     np_page = np.array(Image.open(page_dir / "np_page.png").convert("RGB"))
-    line_tokens = pd.read_parquet(page_dir / "line_tokens.parquet", engine="fastparquet")
-    word_tokens = pd.read_parquet(page_dir / "word_tokens.parquet", engine="fastparquet")
-    layout = pd.read_parquet(page_dir / "layout.parquet", engine="fastparquet")
-    blocks = pd.read_parquet(page_dir / "blocks.parquet", engine="fastparquet")
-    formulas = pd.read_parquet(page_dir / "formulas.parquet", engine="fastparquet")
+    line_tokens = _load_parquet(page_dir / "line_tokens.parquet")
+    word_tokens = _load_parquet(page_dir / "word_tokens.parquet")
+    regions = _load_parquet(page_dir / "regions.parquet")
+    layout = _load_parquet(page_dir / "layout.parquet")
+    blocks = _load_parquet(page_dir / "blocks.parquet")
+    formulas = _load_parquet(page_dir / "formulas.parquet")
 
-    vtl = VisualTokenLayer(
+    vtl = VisualTokenLayers(
         np_page=np_page,
         page_index=page_index,
         line_tokens=line_tokens,
@@ -97,9 +94,17 @@ def load(path: Path) -> tuple[VisualTokenLayer, LayoutLayers, MarkdownDocument]:
     ll = LayoutLayers(
         np_page=np_page,
         page_index=page_index,
+        regions=regions,
         layout=layout,
         blocks=blocks,
         formulas=formulas,
     )
     md = _load_markdown(page_dir / "markdown")
     return vtl, ll, md
+
+def load_bboxes(page_dir: Path, *names: str) -> pd.DataFrame:
+    dataframes = []
+    for name in names:
+        df = _load_parquet(page_dir / f"{name}.parquet")
+        dataframes.append(df[["x0", "y0", "x1", "y1"]])
+    return pd.concat(dataframes, axis=0)

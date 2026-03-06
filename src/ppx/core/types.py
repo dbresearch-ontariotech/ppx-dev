@@ -9,11 +9,6 @@ from pandera.typing import DataFrame, Series
 class RasterDocument:
     pages: list[np.ndarray]
 
-@dataclass
-class PageLayer:
-    np_page: np.ndarray
-    page_index: int
-
 class LineTokenSchema(pa.DataFrameModel):
     x0: Series[int]
     y0: Series[int]
@@ -57,13 +52,18 @@ class FormulaSchema(pa.DataFrameModel):
     formula_region_id: Series[int]
 
 @dataclass
-class VisualTokenLayer(PageLayer):
+class PageLayer:
+    np_page: np.ndarray
+    page_index: int
+    
+@dataclass
+class VisualTokenLayers(PageLayer):
     line_tokens: DataFrame[LineTokenSchema]
     word_tokens: DataFrame[WordTokenSchema]
 
-
 @dataclass
 class LayoutLayers(PageLayer):
+    regions: DataFrame[LayoutSchema]
     layout: DataFrame[LayoutSchema]
     blocks: DataFrame[BlockSchema]
     formulas: DataFrame[FormulaSchema]
