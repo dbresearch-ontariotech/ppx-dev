@@ -1,5 +1,16 @@
+from dataclasses import dataclass, fields
+from typing import Callable
+
 import pandas as pd
 import numpy as np
+from thefuzz import fuzz
+import nltk
+from nltk.tokenize import word_tokenize
+
+nltk.download("punkt")
+nltk.download("punkt_tab")
+
+from ppx.core.algo import dp_align_nodes
 
 
 def _intersection_over_child(cx0, cy0, cx1, cy1, parents: pd.DataFrame) -> pd.Series:
@@ -124,3 +135,68 @@ def build_layout_tree(
         [region_nodes, block_nodes, line_nodes, word_nodes],
         ignore_index=True,
     )
+
+@dataclass
+class VisualTokenNode:
+    node_id: str
+    level_index: int
+    level_name: str
+    parent_id: str
+    x0: int
+    y0: int
+    x1: int
+    y1: int
+    label: str
+    content: str
+
+def get_node_by_id(df: pd.DataFrame, node_id: str) -> VisualTokenNode:
+    row = df[df["node_id"] == node_id].iloc[0]
+    return VisualTokenNode(**{f.name: row[f.name] for f in fields(VisualTokenNode)})
+
+def get_children(df: pd.DataFrame, node_id: str) -> list[VisualTokenNode]:
+    rows = df[df["parent_id"] == node_id]
+    return [VisualTokenNode(**{f.name: row[f.name] for f in fields(VisualTokenNode)}) for _, row in rows.iterrows()]
+
+def fuzz_sim(node: VisualTokenNode, tokens: list[str]) -> float:
+    if not tokens:
+        return 0.0
+    span = " ".join(tokens)
+    return fuzz.token_sort_ratio(node.content, span) / 100.0
+
+@dataclass
+class TreeAlignment:
+    tokens: list[str]
+    align: dict[str, tuple[int, int]]
+
+def align_tree(
+    df: pd.DataFrame,
+    root_id: str,
+    text: str,
+    sim: Callable[[VisualTokenNode, list[str]], float] = None,
+    align_fn: Callable[[list[VisualTokenNode], list[str], Callable[[VisualTokenNode, list[str]], float], int, int], list[tuple[int, int]]] = None,
+) -> TreeAlignment:
+    """Recursively align every node in the layout tree to an interval of text_tokens.
+
+    sim(node, token_slice) -> float  (token_slice is the sublist, not indices)
+    Returns a dict mapping node_id -> (start, end) absolute token indices.
+    """
+    if align_fn is None:
+        align_fn = dp_align_nodes
+    if sim is None:
+        sim = fuzz_sim
+
+    text_tokens = word_tokenize(text)
+
+    def _recurse(node_id: str, a: int, b: int, result: dict):
+        result[node_id] = (a, b)
+        children = get_children(df, node_id)
+        if not children:
+            return
+        intervals = align_fn(children, text_tokens, sim, a=a, b=b)
+        for child, interval in zip(children, intervals):
+            _recurse(child.node_id, interval[0], interval[1], result)
+
+    result = {}
+    _recurse(root_id, 0, len(text_tokens), result)
+    return TreeAlignment(tokens=text_tokens, align=result)
+    
