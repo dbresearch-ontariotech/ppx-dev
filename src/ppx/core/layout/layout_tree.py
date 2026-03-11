@@ -5,12 +5,12 @@ import pandas as pd
 import numpy as np
 from thefuzz import fuzz
 import nltk
-from nltk.tokenize import word_tokenize
+from nltk.tokenize import TreebankWordTokenizer
 
 nltk.download("punkt")
 nltk.download("punkt_tab")
 
-from ppx.core.algo import dp_align_nodes
+from ppx.core.algo import dp_align_nodes, hybrid_align_nodes, greedy_align_nodes
 
 
 def _intersection_over_child(cx0, cy0, cx1, cy1, parents: pd.DataFrame) -> pd.Series:
@@ -136,6 +136,11 @@ def build_layout_tree(
         ignore_index=True,
     )
 
+def get_largest_region(df: pd.DataFrame) -> str:
+    regions = df[df["level_name"] == "region"]
+    areas = (regions["x1"] - regions["x0"]) * (regions["y1"] - regions["y0"])
+    return regions.loc[areas.idxmax(), "node_id"]
+
 @dataclass
 class VisualTokenNode:
     node_id: str
@@ -166,6 +171,7 @@ def fuzz_sim(node: VisualTokenNode, tokens: list[str]) -> float:
 @dataclass
 class TreeAlignment:
     tokens: list[str]
+    token_spans: list[tuple[int, int]]
     align: dict[str, tuple[int, int]]
 
 def align_tree(
@@ -181,11 +187,13 @@ def align_tree(
     Returns a dict mapping node_id -> (start, end) absolute token indices.
     """
     if align_fn is None:
-        align_fn = dp_align_nodes
+        align_fn = hybrid_align_nodes
     if sim is None:
         sim = fuzz_sim
 
-    text_tokens = word_tokenize(text)
+    tokenizer = TreebankWordTokenizer()
+    token_spans = list(tokenizer.span_tokenize(text))
+    text_tokens = [text[s:e] for s, e in token_spans]
 
     def _recurse(node_id: str, a: int, b: int, result: dict):
         result[node_id] = (a, b)
@@ -198,5 +206,5 @@ def align_tree(
 
     result = {}
     _recurse(root_id, 0, len(text_tokens), result)
-    return TreeAlignment(tokens=text_tokens, align=result)
+    return TreeAlignment(tokens=text_tokens, token_spans=token_spans, align=result)
     

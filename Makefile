@@ -7,5 +7,15 @@ install:
 	uv pip install numpy==1.26.4
 	cp -r patch/* .venv/
 
+
+ocr:
+	uv run ppx ocr run -o output ./tests/fixtures/paper.pdf
+
+build-layout-tree:
+	uv run ppx ocr build-layout-tree ./output/paper/ --overwrite
+
+align-layout-tree:
+	uv run ppx ocr align-layout-tree ./output/paper/ --overwrite
+
 clean:
 	rm -rf ./output

@@ -69,4 +69,12 @@ def dp_align_nodes(X: list, Y: list, sim: Callable[[Any, Any], float], a: int = 
 
     return intervals
 
-
+def hybrid_align_nodes(X: list, Y: list, sim: Callable[[Any, Any], float], a: int = 0, b: int = None) -> list[tuple[int, int]]:
+    """
+    if Y is long, use greedy, otherwise use dp
+    """
+    if len(Y) > 100:
+        return greedy_align_nodes(X, Y, sim, a, b)
+    else:
+        return dp_align_nodes(X, Y, sim, a, b)
+    
