@@ -93,7 +93,6 @@ def _is_align_page_dir(p: Path) -> bool:
 
 
 def _align_layout_tree_for_page(page_dir: Path, root_id: str | None, overwrite: bool):
-    import json
     import pandas as pd
     from ppx.core.layout.layout_tree import align_tree, get_largest_region
 
@@ -114,22 +113,7 @@ def _align_layout_tree_for_page(page_dir: Path, root_id: str | None, overwrite: 
 
     alignment = align_tree(tree, effective_root_id, text)
 
-    def _to_char_span(ti, tj):
-        if ti >= tj:
-            return [ti, ti]
-        return [alignment.token_spans[ti][0], alignment.token_spans[tj - 1][1]]
-
-    result = {
-        "tokens": alignment.tokens,
-        "align": {
-            k: {
-                "tokens": list(v),
-                "chars": _to_char_span(v[0], v[1]),
-            }
-            for k, v in alignment.align.items()
-        },
-    }
-    dest.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    dest.write_text(alignment.model_dump_json(indent=2), encoding="utf-8")
     typer.echo(f"  Saved {dest} ({dest.stat().st_size:,} B)")
 
 

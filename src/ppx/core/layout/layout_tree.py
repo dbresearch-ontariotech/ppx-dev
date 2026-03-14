@@ -1,5 +1,7 @@
 from dataclasses import dataclass, fields
-from typing import Callable
+from typing import Callable, Protocol
+
+from pydantic import BaseModel
 
 import pandas as pd
 import numpy as np
@@ -162,24 +164,41 @@ def get_children(df: pd.DataFrame, node_id: str) -> list[VisualTokenNode]:
     rows = df[df["parent_id"] == node_id]
     return [VisualTokenNode(**{f.name: row[f.name] for f in fields(VisualTokenNode)}) for _, row in rows.iterrows()]
 
+class SimilarityFunc(Protocol):
+    def __call__(self, node: VisualTokenNode, tokens: list[str]) -> float:
+        ...
+
 def fuzz_sim(node: VisualTokenNode, tokens: list[str]) -> float:
     if not tokens:
         return 0.0
     span = " ".join(tokens)
     return fuzz.token_sort_ratio(node.content, span) / 100.0
 
-@dataclass
-class TreeAlignment:
-    tokens: list[str]
-    token_spans: list[tuple[int, int]]
-    align: dict[str, tuple[int, int]]
+class VisualTokenAlignment(BaseModel):
+    token_span: tuple[int, int]
+    char_span: tuple[int, int]
+
+class TreeAlignment(BaseModel):
+    token_spans: list[tuple[int, int]]  # (start, end) character offsets per token
+    align: dict[str, VisualTokenAlignment]  # node_id -> spans in text
+
+class AlignFunc(Protocol):
+    def __call__(
+        self,
+        nodes: list[VisualTokenNode],
+        tokens: list[str],
+        sim: SimilarityFunc,
+        a: int,
+        b: int
+    ) -> list[tuple[int, int]]:
+        ...
 
 def align_tree(
     df: pd.DataFrame,
     root_id: str,
     text: str,
-    sim: Callable[[VisualTokenNode, list[str]], float] = None,
-    align_fn: Callable[[list[VisualTokenNode], list[str], Callable[[VisualTokenNode, list[str]], float], int, int], list[tuple[int, int]]] = None,
+    sim: SimilarityFunc = None,
+    align_fn: AlignFunc = None,
 ) -> TreeAlignment:
     """Recursively align every node in the layout tree to an interval of text_tokens.
 
@@ -195,8 +214,16 @@ def align_tree(
     token_spans = list(tokenizer.span_tokenize(text))
     text_tokens = [text[s:e] for s, e in token_spans]
 
+    def _to_char_span(ti: int, tj: int) -> tuple[int, int]:
+        if ti >= tj:
+            return (ti, ti)
+        return (token_spans[ti][0], token_spans[tj - 1][1])
+
     def _recurse(node_id: str, a: int, b: int, result: dict):
-        result[node_id] = (a, b)
+        result[node_id] = VisualTokenAlignment(
+            token_span=(a, b),
+            char_span=_to_char_span(a, b),
+        )
         children = get_children(df, node_id)
         if not children:
             return
@@ -206,5 +233,44 @@ def align_tree(
 
     result = {}
     _recurse(root_id, 0, len(text_tokens), result)
-    return TreeAlignment(tokens=text_tokens, token_spans=token_spans, align=result)
+    return TreeAlignment(token_spans=token_spans, align=result)
     
+
+def reverse_align_tree(
+    layout_tree_df: pd.DataFrame,
+    alignment: TreeAlignment,
+    char_span: tuple[int, int],
+) -> pd.DataFrame:
+    """
+    Reverse align the layout tree to a character span of the text.
+
+    df: layout tree
+    alignment: TreeAlignment
+    char_span: (start, end) character offsets
+
+    Returns:
+        pd.DataFrame: visual tokens that overlaps with the character span.  The columns are the same as the layout tree, but with additional column `overlap:float` calculated as the ratio between the overlap to the visual token character span.
+    """
+    qs, qe = char_span
+    rows = []
+    for node_id, vta in alignment.align.items():
+        ns, ne = vta.char_span
+        span_len = ne - ns
+        if span_len <= 0:
+            continue
+        overlap_len = max(0, min(qe, ne) - max(qs, ns))
+        if overlap_len == 0:
+            continue
+        node_rows = layout_tree_df[layout_tree_df["node_id"] == node_id]
+        if node_rows.empty:
+            continue
+        row = node_rows.iloc[0].to_dict()
+        row["overlap"] = overlap_len / span_len
+        rows.append(row)
+
+    if not rows:
+        return layout_tree_df.iloc[0:0].assign(overlap=pd.Series(dtype=float))
+
+    result = pd.DataFrame(rows)
+    result["overlap"] = result["overlap"].astype(float)
+    return result

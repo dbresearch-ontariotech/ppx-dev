@@ -16,6 +16,8 @@ dependencies = [
     "pandera>=0.29.0",
     "thefuzz>=0.22.1",
     "nltk>=3.9.3",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
 ]
 
 [dependency-groups]
