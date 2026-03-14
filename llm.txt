@@ -1,0 +1,52 @@
+# PaddleOCR REST API (ppx)
+
+Base prefix: /api/v1/ppx
+
+## Endpoints
+
+### Health
+
+GET /health
+  Returns: { "status": "ok" }
+
+### Documents
+
+GET /api/v1/ppx/documents
+  List all documents in the data root.
+  Returns: { "documents": [{ "filename": str, "page_count": int }] }
+
+GET /api/v1/ppx/documents/{filename}/pages
+  List all pages for a document, including image dimensions.
+  Returns: { "filename": str, "pages": [{ "page_index": int, "width": int, "height": int }] }
+
+### Pages
+
+GET /api/v1/ppx/documents/{filename}/pages/{page_index}/image
+  Returns the page image as image/png (FileResponse).
+
+GET /api/v1/ppx/documents/{filename}/pages/{page_index}/markdown/index.md
+  Returns the primary markdown file for the page (text/markdown).
+
+GET /api/v1/ppx/documents/{filename}/pages/{page_index}/markdown/{resource:path}
+  Returns an arbitrary resource file within the page's markdown directory.
+  Path traversal outside the markdown directory returns 403.
+
+GET /api/v1/ppx/documents/{filename}/pages/{page_index}/visual_tokens
+  Returns all OCR token layers (regions, blocks, line_tokens, word_tokens) as a
+  flat JSON array. Each record includes a "layer" field indicating which layer it
+  came from.
+
+GET /api/v1/ppx/documents/{filename}/pages/{page_index}/layout_tree
+  Returns the layout tree for the page as a JSON array of node records.
+  Each node may have a "parent_id" field (null for root nodes).
+  Returns 404 if layout-tree.parquet is not present.
+
+GET /api/v1/ppx/documents/{filename}/pages/{page_index}/alignment
+  Returns the tree alignment result as a JSON object (TreeAlignment model).
+  Returns 404 if alignment.json is not present.
+
+## Notes
+
+- {filename} is the document directory name under the data root.
+- {page_index} is 0-based; pages are ordered by their numeric subdirectory name.
+- All 404s are returned with a JSON detail message.

@@ -23,7 +23,7 @@ class HealthResponse(BaseModel):
 
 
 app = FastAPI(lifespan=lifespan)
-app.include_router(documents.router, prefix="/v1/ppx")
+app.include_router(documents.router, prefix="/api/v1/ppx")
 
 
 @app.get("/health", response_model=HealthResponse)
