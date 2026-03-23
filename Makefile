@@ -17,5 +17,8 @@ build-layout-tree:
 align-layout-tree:
 	uv run ppx ocr align-layout-tree ./output/paper/ --overwrite
 
+serve:
+	uv run ppx server start --data ./output --delay 500
+
 clean:
 	rm -rf ./output
