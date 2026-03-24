@@ -10,13 +10,11 @@
 \usepackage{amsfonts}       % blackboard math symbols
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypography
+\usepackage{cleveref}       % smart cross-referencing
 \usepackage{lipsum}         % Can be removed after putting your text content
 \usepackage{graphicx}
 \usepackage{natbib}
 \usepackage{doi}
-\usepackage{amsmath}
-\usepackage{cleveref}       % smart cross-referencing (must be after amsmath)
-\usepackage{ulem} 
 
 \title{Alignment of visual and textual tokens for multi-modal document understanding}
 
@@ -97,65 +95,29 @@ pdfkeywords={},
 \maketitle
 
 \begin{abstract}
-	Document layout analysis is a crucial step in the process of document understanding. As modern advancements in Optical Character Recognition \textit{(OCR)} have pushed the frontier of document understanding, there remain several unsolved problems that, once solved, \sout{will unlock new capacities for machine understanding of structured documents.} One such problem is verifying the source location of resultant text in parsed documents. OCR extracted text from a particular document has no structured paradigm for verifying the spatial location of origin. This is called \textit{alignment} between parsed text and its source location. We are proposing a framework that defines three data structures; \textit{Visual Tokens (VT), Text Tokens (TT), and a layout tree}, along with two algorithms- greedy and dynamic programming- to solve this alignment problem and achieve semantic provenance. In this paper we provide a formal definition of the alignment problem and propose the framework for semantic provenance. In future work we hope to tackle evaluation methods to measure *how* accurate the various algorithms are for achieving alignment. Our aim is to lay the groundwork for future research that furthers the development in document understanding.
+	\lipsum[1]
 \end{abstract}
 
 
 % keywords can be removed
-\keywords{Optical Character Recognition \and Document Understanding \and Layout Analysis}
+\keywords{First keyword \and Second keyword \and More}
 
-\section{Notes}
-
-An area to jot down rough work and ideas.
-
-"A fundamental gap in the field of document understanding is the alignment between different modalities of input. We aim to provide a framework for multi-modal alignment that closes the gap of source-truth verification, achieving semantic provenance."
-
-When you have structured documents this is relatively simple, but as soon as you introduce multiple modalities the problem becomes increasingly complex. Think of PDFs, that is easy. But what about images? Harder. Now, how about scans? Now that's not so straight-forward.
 
 \section{Introduction}
 
-We must first begin by asking some important qualifying questions:
-\begin{itemize}
-	\item What is the problem we are trying to solve?
-	\item Why is it a problem?
-	\item Where is the gap in knowledge?
-	\item Who has worked on this problem?
-	\item When did this problem surface?
-	\item How do we propose to solve it?
-	\item What technologies will we use to solve it?
-\end{itemize}
+Hello
 
-The below is from the poster presentation. Likely won't keep but introduces some key words.
-\begin{description}
-	\item[Problem] Raw PDF documents lack machine-readable structure, making semantic queries impossible to spatially locate. Existing OCR tools provide bounding boxes but fragment text; LLMs reconstruct meaning but lose spatial information. 
-	\item[Challenge] Aligning spatial OCR fragments with semantic LLM text to enable queries that return precise page coordinates.
-	\item[Goal] Establish semantic queries on	 PDF documents with verifiable source locations — establishing semantic provenance (tracing answers to their exact spatial origin).
-\end{description}
 
-\section{Overview of PaddlePaddle}
-\label{sec:PaddlePaddle}
+\section{Headings: first level}
+\label{sec:headings}
 
-PaddlePaddle
+\lipsum[4] See Section \ref{sec:headings}.
 
-\begin{description}
-	\item What neural network architectures are used for paddleocr?
-	\item Formal data modeling output of paddleocr.
-	\item Text, segment, and word definition.
-	\item Layout analysis
-\end{description}
-
-See Section \ref{sec:PaddlePaddle}.
-
-\subsection{Neural Network Architecture}
+\subsection{Headings: second level}
 \lipsum[5]
 \begin{equation}
 	\xi _{ij}(t)=P(x_{t}=i,x_{t+1}=j|y,v,w;\theta)= {\frac {\alpha _{i}(t)a^{w_t}_{ij}\beta _{j}(t+1)b^{v_{t+1}}_{j}(y_{t+1})}{\sum _{i=1}^{N} \sum _{j=1}^{N} \alpha _{i}(t)a^{w_t}_{ij}\beta _{j}(t+1)b^{v_{t+1}}_{j}(y_{t+1})}}
 \end{equation}
-
-\subsection{Formal Data Model}
-\paragraph{Paragraph}
-Formal data modeling output of paddleocr. Include some combination of equations and figures here.
-
 
 \subsubsection{Headings: third level}
 \lipsum[6]
@@ -165,23 +127,8 @@ Formal data modeling output of paddleocr. Include some combination of equations 
 
 
 
-\section{Proposed Framework}
+\section{Examples of citations, figures, tables, references}
 \label{sec:others}
-
-\subsection{Datastructures}
-Here we will define the data structures used in our proposed framework. We will also include any relevant equations or figures to illustrate these data structures
-
-\subsubsection{Visual Tokens (VT)}
-\paragraph{Paragraph}
-The visual tokens are produced by PaddleOCR for hierarchical organization.
-
-\subsubsection{Text Tokens (TT)}
-\paragraph{Paragraph}
-Produced by Markdown extraction.
-
-\subsubsection{Layout Tree}
-\paragraph{Paragraph}
-Layout tree used for ...
 
 \subsection{Citations}
 Citations use \verb+natbib+. The documentation may be found at
@@ -236,44 +183,6 @@ The documentation for \verb+booktabs+ (`Publication quality tables in LaTeX') is
 	\item Aliquam dignissim blandit est, in dictum tortor gravida eget. In ac rutrum magna.
 \end{itemize}
 
-\section{Alignment Problem}
-\label{sec:alignment}
-
-Here we must formally define the alignment problem. The alignment problem is \dots
-
-\subsection{Formal Definition}
-
-\subsection{Constraints}
-
-\subsection{Quality of Alignment}
-
-\subsection{Algorithms}
-\label{sec:alignment_algorithms}
-
-\subsubsection{Dynamic Programming Formulation}
-
-\subsubsection{Greedy}
-In the greedy approach, we make a series of choices, each of which looks best at the moment. This method is generally faster but may not always produce the optimal solution.
-
-\subsubsection{Hybrid Approach}
-
-In the hybrid approach, we combine elements of both dynamic programming and greedy methods. We can assume that for some regions of text (math here) we can efficiently use DP. Whereas, when the depth of the branch exceeds a certain length we instead use the greedy algorithm to derive the locally optimal solution.
-
-Gives us 
-\begin{equation}
-	\text{Alignment}(L) = 
-	\begin{cases}
-		\text{DP}(L) & \text{if } L < c \\
-		\text{GREEDY}(L) & \text{if } L \geq c
-	\end{cases}
-\end{equation}
-
-
-\section{Future Work}
-
-Evaluation.
-
-\section{Conclusion}
 
 \bibliographystyle{unsrtnat}
 \bibliography{references}  %%% Uncomment this line and comment out the ``thebibliography'' section below to use the external .bib file (using bibtex) .
