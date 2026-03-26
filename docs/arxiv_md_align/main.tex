@@ -10,13 +10,16 @@
 \usepackage{amsfonts}       % blackboard math symbols
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypography
+\emergencystretch=1em       % suppress underfull hbox warnings
 \usepackage{lipsum}         % Can be removed after putting your text content
 \usepackage{graphicx}
 \usepackage{natbib}
 \usepackage{doi}
 \usepackage{amsmath}
 \usepackage{cleveref}       % smart cross-referencing (must be after amsmath)
-\usepackage{ulem} 
+\usepackage{ulem}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta}
 
 \title{Alignment of visual and textual tokens for multi-modal document understanding}
 
@@ -26,40 +29,25 @@
 %\date{}
 
 \newif\ifuniqueAffiliation
-% Comment to use multiple affiliations variant of author block 
+% Comment to use multiple affiliations variant of author block
 \uniqueAffiliationtrue
 
 \ifuniqueAffiliation % Standard variant of author block
 \author{
-	{Levi Willms}
-	\thanks{
-		This document is a partial fulfillment of the requires for the Undergraduate honours thesis in Computer Science.
-	} \\
-	Computer Science, Faculty of Science\\
-	Ontario Tech University\\
-	Oshawa, ON \\
-	\texttt{levi.willms@ontariotechu.net} \\
-	\And
-	{Ken Pu (\textsc{Supervisor})} \\
-	Computer Science, Faculty of Science\\
-	Ontario Tech University\\
-	Oshawa, ON \\
-	\texttt{ken.pu@ontariotechu.ca} \\
-	%% \AND
-	%% Coauthor \\
-	%% Affiliation \\
-	%% Address \\
-	%% \texttt{email} \\
-	%% \And
-	%% Coauthor \\
-	%% Affiliation \\
-	%% Address \\
-	%% \texttt{email} \\
-	%% \And
-	%% Coauthor \\
-	%% Affiliation \\
-	%% Address \\
-	%% \texttt{email} \\
+  {Levi Willms}
+  \thanks{
+    This document is a partial fulfillment of the requires for the Undergraduate honours thesis in Computer Science.
+  } \\
+  Computer Science, Faculty of Science\\
+  Ontario Tech University\\
+  Oshawa, ON \\
+  \texttt{levi.willms@ontariotechu.net} \\
+  \And
+  {Ken Pu (\textsc{Supervisor})} \\
+  Computer Science, Faculty of Science\\
+  Ontario Tech University\\
+  Oshawa, ON \\
+  \texttt{ken.pu@ontariotechu.ca} \\
 }
 \else
 % Multiple affiliations variant of author block
@@ -67,12 +55,12 @@
 \renewcommand\Authfont{\bfseries}
 \setlength{\affilsep}{0em}
 % box is needed for correct spacing with authblk
-\newbox{\orcid}\sbox{\orcid}{\includegraphics[scale=0.06]{orcid.pdf}} 
+\newbox{\orcid}\sbox{\orcid}{\includegraphics[scale=0.06]{orcid.pdf}}
 \author[1]{%
-	\href{https://orcid.org/0000-0000-0000-0000}{\usebox{\orcid}\hspace{1mm}David S.~Hippocampus\thanks{\texttt{hippo@cs.cranberry-lemon.edu}}}%
+  \href{https://orcid.org/0000-0000-0000-0000}{\usebox{\orcid}\hspace{1mm}David S.~Hippocampus\thanks{\texttt{hippo@cs.cranberry-lemon.edu}}}%
 }
 \author[1,2]{%
-	\href{https://orcid.org/0000-0000-0000-0000}{\usebox{\orcid}\hspace{1mm}Elias D.~Striatum\thanks{\texttt{stariate@ee.mount-sheikh.edu}}}%
+  \href{https://orcid.org/0000-0000-0000-0000}{\usebox{\orcid}\hspace{1mm}Elias D.~Striatum\thanks{\texttt{stariate@ee.mount-sheikh.edu}}}%
 }
 \affil[1]{Department of Computer Science, Cranberry-Lemon University, Pittsburgh, PA 15213}
 \affil[2]{Department of Electrical Engineering, Mount-Sheikh University, Santa Narimana, Levand}
@@ -87,19 +75,31 @@
 %%% Once the PDF is generated, you can check the metadata with
 %%% $ pdfinfo template.pdf
 \hypersetup{
-pdftitle={},
-pdfsubject={},
-pdfauthor={},
-pdfkeywords={},
+  pdftitle={},
+  pdfsubject={},
+  pdfauthor={},
+  pdfkeywords={},
 }
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-	Document layout analysis is a crucial step in the process of document understanding. As modern advancements in Optical Character Recognition \textit{(OCR)} have pushed the frontier of document understanding, there remain several unsolved problems that, once solved, \sout{will unlock new capacities for machine understanding of structured documents.} One such problem is verifying the source location of resultant text in parsed documents. OCR extracted text from a particular document has no structured paradigm for verifying the spatial location of origin. This is called \textit{alignment} between parsed text and its source location. We are proposing a framework that defines three data structures; \textit{Visual Tokens (VT), Text Tokens (TT), and a layout tree}, along with two algorithms- greedy and dynamic programming- to solve this alignment problem and achieve semantic provenance. In this paper we provide a formal definition of the alignment problem and propose the framework for semantic provenance. In future work we hope to tackle evaluation methods to measure *how* accurate the various algorithms are for achieving alignment. Our aim is to lay the groundwork for future research that furthers the development in document understanding.
+  Document layout analysis is a crucial step in the process of document understanding. As modern
+  advancements in Optical Character Recognition \textit{(OCR)} have pushed the frontier of
+  document understanding, there remain several unsolved problems that, once solved,
+  \sout{will unlock new capacities for machine understanding of structured documents.}
+  One such problem is verifying the source location of resultant text in parsed documents. OCR
+  extracted text from a particular document has no structured paradigm for verifying the spatial
+  location of origin. This is called \textit{alignment} between parsed text and its source location.
+  We are proposing a framework that defines three data structures; \textit{Visual Tokens (VT), Text
+  Tokens (TT), and a layout tree}, along with two algorithms- greedy and dynamic programming- to
+  solve this alignment problem and achieve semantic provenance. In this paper we provide a formal
+  definition of the alignment problem and propose the framework for semantic provenance. In future
+  work we hope to tackle evaluation methods to measure *how* accurate the various algorithms are for
+  achieving alignment. Our aim is to lay the groundwork for future research that furthers the development
+  in document understanding.
 \end{abstract}
-
 
 % keywords can be removed
 \keywords{Optical Character Recognition \and Document Understanding \and Layout Analysis}
@@ -116,54 +116,133 @@ When you have structured documents this is relatively simple, but as soon as you
 
 We must first begin by asking some important qualifying questions:
 \begin{itemize}
-	\item What is the problem we are trying to solve?
-	\item Why is it a problem?
-	\item Where is the gap in knowledge?
-	\item Who has worked on this problem?
-	\item When did this problem surface?
-	\item How do we propose to solve it?
-	\item What technologies will we use to solve it?
+  \item What is the problem we are trying to solve?
+  \item Why is it a problem?
+  \item Where is the gap in knowledge?
+  \item Who has worked on this problem?
+  \item When did this problem surface?
+  \item How do we propose to solve it?
+  \item What technologies will we use to solve it?
 \end{itemize}
 
 The below is from the poster presentation. Likely won't keep but introduces some key words.
 \begin{description}
-	\item[Problem] Raw PDF documents lack machine-readable structure, making semantic queries impossible to spatially locate. Existing OCR tools provide bounding boxes but fragment text; LLMs reconstruct meaning but lose spatial information. 
-	\item[Challenge] Aligning spatial OCR fragments with semantic LLM text to enable queries that return precise page coordinates.
-	\item[Goal] Establish semantic queries on	 PDF documents with verifiable source locations — establishing semantic provenance (tracing answers to their exact spatial origin).
+  \item[Problem] Raw PDF documents lack machine-readable structure, making semantic queries impossible to spatially locate. Existing OCR tools provide bounding boxes but fragment text; LLMs reconstruct meaning but lose spatial information.
+  \item[Challenge] Aligning spatial OCR fragments with semantic LLM text to enable queries that return precise page coordinates.
+  \item[Goal] Establish semantic queries on   PDF documents with verifiable source locations — establishing semantic provenance (tracing answers to their exact spatial origin).
 \end{description}
 
 \section{Overview of PaddlePaddle}
 \label{sec:PaddlePaddle}
 
-PaddlePaddle
+Our alignment framework builds on top of PaddleOCR~3.0~\cite{PaddleOCR30}, an open-source document understanding toolkit developed by Baidu on the PaddlePaddle deep learning platform. PaddleOCR~3.0 provides three solutions; we use two of them as preprocessing stages:
 
-\begin{description}
-	\item What neural network architectures are used for paddleocr?
-	\item Formal data modeling output of paddleocr.
-	\item Text, segment, and word definition.
-	\item Layout analysis
-\end{description}
+\begin{enumerate}
+  \item \textbf{PP-OCRv5} --- a four-stage text detection and recognition pipeline that produces line-level and word-level visual tokens.
+  \item \textbf{PP-StructureV3} --- a multi-model document parsing pipeline that recovers layout regions, content blocks, formulas, tables, and a markdown rendering of the page.
+\end{enumerate}
 
-See Section \ref{sec:PaddlePaddle}.
+Both pipelines share a common image preprocessing front-end (orientation classification and optional geometric unwarping) and together produce the inputs to our layout tree and alignment algorithms described in \Cref{sec:others,sec:alignment}.
 
-\subsection{Neural Network Architecture}
-\lipsum[5]
-\begin{equation}
-	\xi _{ij}(t)=P(x_{t}=i,x_{t+1}=j|y,v,w;\theta)= {\frac {\alpha _{i}(t)a^{w_t}_{ij}\beta _{j}(t+1)b^{v_{t+1}}_{j}(y_{t+1})}{\sum _{i=1}^{N} \sum _{j=1}^{N} \alpha _{i}(t)a^{w_t}_{ij}\beta _{j}(t+1)b^{v_{t+1}}_{j}(y_{t+1})}}
-\end{equation}
+\subsection{PP-OCRv5: Text Detection and Recognition}
+
+The PP-OCRv5 pipeline~\cite{PaddleOCR30} processes a document page through four sequential stages: (1)~image preprocessing, which corrects page orientation and optionally unwarps photographed documents; (2)~text detection, which localizes text regions as bounding boxes; (3)~text-line orientation classification; and (4)~text recognition, which produces a text string and confidence score for each detected line. When word-level output is requested, the recognizer further segments each line into individual word boxes, each linked to its parent line. These outputs --- line and word bounding boxes with associated text --- constitute the \emph{visual tokens} consumed by our framework.
+
+\subsection{PP-DocLayout: Layout Detection}
+
+PP-DocLayout~\cite{PPDocLayout} is a layout detection model that localizes 23~categories of document elements, including paragraph titles, text blocks, images, tables, formulas, headers, footers, footnotes, seals, and charts. Each detected element is returned as a bounding box with a semantic label and a confidence score. These labels determine the \texttt{label} field that propagates through our layout tree (\Cref{sec:others}).
+
+\subsection{PP-StructureV3: Document Parsing Pipeline}
+
+PP-StructureV3~\cite{PaddleOCR30} composes PP-OCRv5 and PP-DocLayout into an end-to-end document parsing pipeline. Beyond detection, it applies specialized models for table recognition (outputting HTML), formula recognition (outputting \LaTeX), and chart parsing. A post-processing stage recovers reading order via an improved X-Y Cut algorithm, links captions to their figures or tables, and assembles the full page into structured JSON and Markdown.
+
+Our framework consumes four outputs from this pipeline: the layout detection results for \emph{regions} and \emph{blocks} (with reading order), the formula recognition results, and the rendered \emph{Markdown}. The formal data model for these outputs is defined in \Cref{sec:formal_data_model}.
 
 \subsection{Formal Data Model}
-\paragraph{Paragraph}
-Formal data modeling output of paddleocr. Include some combination of equations and figures here.
+\label{sec:formal_data_model}
 
+We now formalize the output of the PaddleOCR preprocessing pipeline. We begin with basic geometric definitions, then describe the two extraction steps that produce the inputs to our alignment framework. \Cref{fig:pipeline} provides an overview of the full processing pipeline.
 
-\subsubsection{Headings: third level}
-\lipsum[6]
+\begin{figure}[htbp]
+\centering
+\definecolor{inputcol}{HTML}{4A90D9}
+\definecolor{proccol}{HTML}{E07B3C}
+\definecolor{datacol}{HTML}{5BA85B}
+\definecolor{outcol}{HTML}{8E6BBF}
+\begin{tikzpicture}[
+  >=Stealth,
+  box/.style={draw, rounded corners, thick, minimum width=2.4cm, minimum height=0.8cm,
+              align=center, font=\small},
+  data/.style={draw, thick, minimum width=2.4cm, minimum height=0.8cm,
+               align=center, font=\small},
+  lbl/.style={font=\scriptsize\itshape, text=gray},
+  every path/.append style={thick}
+]
 
-\paragraph{Paragraph}
-\lipsum[7]
+% Row 1: Input
+\node[box, fill=inputcol!15, draw=inputcol] (input) {Page $d$};
 
+% Row 2: Processing (side by side)
+\node[box, fill=proccol!15, draw=proccol, below left=1.2cm and 1cm of input] (ocr) {PaddleOCR};
+\node[box, fill=proccol!15, draw=proccol, below right=1.2cm and 1cm of input] (struct) {PPStructureV3};
 
+% Row 3: Data outputs
+\node[data, fill=datacol!15, draw=datacol, below=1.2cm of ocr] (vt) {$\mathcal{L},\; \mathcal{W}$};
+\node[lbl, right=0.15cm of vt] {Visual Tokens};
+
+\node[data, fill=datacol!15, draw=datacol, below=1.2cm of struct] (ll) {$\mathcal{R},\; \mathcal{B},\; \mathcal{F},\; m$};
+\node[lbl, left=0.15cm of ll] {Layout Layers};
+
+% Row 4: Layout Tree
+\node[box, fill=outcol!15, draw=outcol, below right=1.2cm and 1cm of vt] (tree) {Layout Tree $T$};
+
+% Row 5: Alignment
+\node[box, fill=outcol!15, draw=outcol, below=1.2cm of tree] (align) {Alignment $\alpha$};
+
+% Arrows
+\draw[->, inputcol] (input) -- (ocr);
+\draw[->, inputcol] (input) -- (struct);
+\draw[->, proccol] (ocr) -- (vt);
+\draw[->, proccol] (struct) -- (ll);
+\draw[->, datacol] (vt) -- (tree);
+\draw[->, datacol] (ll) -- (tree);
+\draw[->, outcol] (tree) -- (align);
+
+\end{tikzpicture}
+\caption{Overview of the document processing pipeline. A page image is processed in parallel by PaddleOCR for visual token extraction and by PPStructureV3 for structural layout analysis. The outputs are merged into a hierarchical layout tree, which is then aligned to a reference text.}
+\label{fig:pipeline}
+\end{figure}
+
+A \emph{document page} is a raster image $d \in \mathbb{R}^{H \times W \times 3}$. A \emph{bounding box} is a tuple $b = (x_0, y_0, x_1, y_1) \in \mathbb{Z}^4$ representing the axis-aligned rectangle $[x_0, x_1] \times [y_0, y_1]$, with area $|b| = (x_1 - x_0)(y_1 - y_0)$.
+
+\subsubsection{OCR --- Visual Token Extraction}
+
+The OCR step applies text detection and recognition to a page image, producing two granularities of visual tokens:
+\begin{equation}
+  \mathrm{OCR}(d) = (\mathcal{L}, \mathcal{W})
+  \label{eq:ocr}
+\end{equation}
+where:
+\begin{itemize}
+  \item \textbf{Lines} $\mathcal{L} = \{(b_i, t_i, s_i)\}_{i=1}^{n_L}$, each consisting of a bounding box~$b_i$, a text string~$t_i$, and a confidence score $s_i \in [0, 1]$.
+  \item \textbf{Words} $\mathcal{W} = \{(b_j, t_j, \ell_j)\}_{j=1}^{n_W}$, each consisting of a bounding box~$b_j$, a text string~$t_j$, and a parent line index $\ell_j \in \{1, \ldots, n_L\}$.
+\end{itemize}
+Words are pre-assigned to lines by the OCR engine via the foreign key~$\ell_j$.
+
+\subsubsection{Layout Parsing --- Structural Extraction}
+
+The layout parsing step applies PPStructureV3~\cite{PaddleOCRv3} to recover the semantic structure of the page:
+\begin{equation}
+  \mathrm{Layout}(d) = (\mathcal{R}, \mathcal{B}, \mathcal{F}, m)
+  \label{eq:layout}
+\end{equation}
+where:
+\begin{itemize}
+  \item \textbf{Regions} $\mathcal{R} = \{(b_i, \lambda_i, s_i)\}_{i=1}^{n_R}$, coarse page zones with a semantic label~$\lambda_i$ and a detection score~$s_i$.
+  \item \textbf{Blocks} $\mathcal{B} = \{(b_j, \lambda_j, o_j, c_j)\}_{j=1}^{n_B}$, content blocks with a label~$\lambda_j$, a reading order $o_j \in \mathbb{Z} \cup \{\bot\}$, and text content~$c_j$.
+  \item \textbf{Formulas} $\mathcal{F} = \{(b_k, t_k, r_k)\}_{k=1}^{n_F}$, detected formulas with a \LaTeX\ string~$t_k$ and a region assignment~$r_k$.
+  \item \textbf{Markdown} $m \in \Sigma^*$, a rendered markdown representation of the page content.
+\end{itemize}
 
 \section{Proposed Framework}
 \label{sec:others}
@@ -180,94 +259,184 @@ The visual tokens are produced by PaddleOCR for hierarchical organization.
 Produced by Markdown extraction.
 
 \subsubsection{Layout Tree}
-\paragraph{Paragraph}
-Layout tree used for ...
+\label{sec:layout_tree}
 
-\subsection{Citations}
-Citations use \verb+natbib+. The documentation may be found at
-\begin{center}
-	\url{http://mirrors.ctan.org/macros/latex/contrib/natbib/natnotes.pdf}
-\end{center}
+The layout tree $T = (V, E)$ is a four-level hierarchy that unifies the visual tokens from PP-OCRv5 with the structural outputs of PP-StructureV3 into a single rooted tree. Each node carries a bounding box, a semantic label, and textual content.
 
-Here is an example usage of the two main commands (\verb+citet+ and \verb+citep+): Some people thought a thing \citep{kour2014real, keshet2016prediction} but other people thought something else \citep{kour2014fast}. Many people have speculated that if we knew exactly why \citet{kour2014fast} thought this\dots
+\paragraph{Intersection-over-child.}
+To assign children to parents across levels, we define the \emph{intersection-over-child} (IoC) between a child box~$b_c$ and a candidate parent box~$b_p$:
+\begin{equation}
+  \mathrm{IoC}(b_c, b_p) = \frac{|b_c \cap b_p|}{|b_c|}
+  \label{eq:ioc}
+\end{equation}
+where $b_c \cap b_p$ denotes the axis-aligned intersection rectangle (area~0 if the boxes are disjoint). Given a tolerance threshold $\tau \in [0, 1]$ (we use $\tau = 0.8$), each child is assigned to the parent that maximizes IoC, provided the overlap meets the threshold:
+\begin{equation}
+  \mathrm{parent}(c, P) = \underset{p \in P}{\arg\max}\;\mathrm{IoC}(b_c, b_p)
+  \quad \text{s.t.} \quad \mathrm{IoC}(b_c, b_p) \geq \tau
+  \label{eq:parent_assign}
+\end{equation}
+If no candidate meets the threshold, the child is unassigned ($\bot$). The threshold accommodates pixel-level noise in the bounding boxes predicted by the detection models.
 
-\subsection{Figures}
-\lipsum[10]
-See Figure \ref{fig:fig1}. Here is how you add footnotes. \footnote{Sample of the first footnote.}
-\lipsum[11]
+\paragraph{Tree construction.}
+The tree is built level by level, as summarized in \Cref{tab:tree_levels}. Levels~0--2 use the spatial IoC assignment of \Cref{eq:parent_assign}, while level~3 uses the foreign key~$\ell_j$ pre-computed by the OCR engine.
 
-\begin{figure}
-	\centering
-	\fbox{\rule[-.5cm]{4cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
-	\caption{Sample figure caption.}
-	\label{fig:fig1}
-\end{figure}
-
-\subsection{Tables}
-See awesome Table~\ref{tab:table}.
-
-The documentation for \verb+booktabs+ (`Publication quality tables in LaTeX') is available from:
-\begin{center}
-	\url{https://www.ctan.org/pkg/booktabs}
-\end{center}
-
-
-\begin{table}
-	\caption{Sample table title}
-	\centering
-	\begin{tabular}{lll}
-		\toprule
-		\multicolumn{2}{c}{Part}                   \\
-		\cmidrule(r){1-2}
-		Name     & Description     & Size ($\mu$m) \\
-		\midrule
-		Dendrite & Input terminal  & $\sim$100     \\
-		Axon     & Output terminal & $\sim$10      \\
-		Soma     & Cell body       & up to $10^6$  \\
-		\bottomrule
-	\end{tabular}
-	\label{tab:table}
+\begin{table}[htbp]
+\centering
+\caption{Layout tree construction levels. Each level is assigned to the parent set of the level above via IoC, except for words which use the OCR-provided line index.}
+\label{tab:tree_levels}
+\begin{tabular}{clll}
+\toprule
+Level & Nodes & Ordering & Parent set \\
+\midrule
+0 & Regions $\mathcal{R}$  & Descending area    & $\bot$ (roots) \\
+1 & Blocks $\mathcal{B}$   & Reading order $o_j$ & $\mathcal{R}$ \\
+2 & Lines $\mathcal{L}$    & Vertical position $y_0$ & $\mathcal{B}$ \\
+3 & Words $\mathcal{W}$    & Original order     & $\mathcal{L}$ via FK $\ell_j$ \\
+\bottomrule
+\end{tabular}
 \end{table}
 
-\subsection{Lists}
-\begin{itemize}
-	\item Lorem ipsum dolor sit amet
-	\item consectetur adipiscing elit.
-	\item Aliquam dignissim blandit est, in dictum tortor gravida eget. In ac rutrum magna.
-\end{itemize}
+\Cref{fig:layout_tree} illustrates the resulting hierarchy for a sample page. Regions form the roots of the tree, blocks partition each region into ordered content units, lines capture the OCR text lines within each block, and words provide the finest granularity.
+
+\begin{figure}[htbp]
+\centering
+\definecolor{lvl0}{HTML}{4A90D9}
+\definecolor{lvl1}{HTML}{E07B3C}
+\definecolor{lvl2}{HTML}{5BA85B}
+\definecolor{lvl3}{HTML}{8E6BBF}
+\begin{tikzpicture}[
+  >=Stealth,
+  level distance=1.4cm,
+  sibling distance=2.8cm,
+  every node/.style={draw, rounded corners, thick, minimum width=1.6cm,
+                     minimum height=0.65cm, align=center, font=\small},
+  level 1/.style={sibling distance=4.5cm},
+  level 2/.style={sibling distance=2.2cm},
+  level 3/.style={sibling distance=1.2cm},
+  edge from parent/.style={draw, thick, ->}
+]
+
+\node[fill=lvl0!15, draw=lvl0] {Region $r_1$}
+  child { node[fill=lvl1!15, draw=lvl1] {Block $b_1$}
+    child { node[fill=lvl2!15, draw=lvl2] {Line $l_1$}
+      child { node[fill=lvl3!15, draw=lvl3, font=\scriptsize] {$w_1$} }
+      child { node[fill=lvl3!15, draw=lvl3, font=\scriptsize] {$w_2$} }
+    }
+    child { node[fill=lvl2!15, draw=lvl2] {Line $l_2$}
+      child { node[fill=lvl3!15, draw=lvl3, font=\scriptsize] {$w_3$} }
+      child { node[fill=lvl3!15, draw=lvl3, font=\scriptsize] {$w_4$} }
+    }
+  }
+  child { node[fill=lvl1!15, draw=lvl1] {Block $b_2$}
+    child { node[fill=lvl2!15, draw=lvl2] {Line $l_3$}
+      child { node[fill=lvl3!15, draw=lvl3, font=\scriptsize] {$w_5$} }
+      child { node[fill=lvl3!15, draw=lvl3, font=\scriptsize] {$w_6$} }
+      child { node[fill=lvl3!15, draw=lvl3, font=\scriptsize] {$w_7$} }
+    }
+  };
+
+\end{tikzpicture}
+\caption{Example layout tree. Colours correspond to tree levels: \textcolor{lvl0}{regions} (level~0), \textcolor{lvl1}{blocks} (level~1), \textcolor{lvl2}{lines} (level~2), and \textcolor{lvl3}{words} (level~3). Edges denote parent--child relationships established by IoC assignment or the OCR foreign key.}
+\label{fig:layout_tree}
+\end{figure}
 
 \section{Alignment Problem}
 \label{sec:alignment}
 
-Here we must formally define the alignment problem. The alignment problem is \dots
+Given a layout tree~$T$ and a reference text~$m$ (the Markdown produced by PP-StructureV3), the alignment problem asks: which substring of~$m$ corresponds to each node of~$T$? A solution assigns every node a contiguous span of text tokens such that (i)~sibling spans partition their parent's span without overlap, (ii)~the root interval covers all tokens, $\alpha(r) = [0, N)$, and (iii)~the total textual similarity between nodes and their assigned spans is maximized.
 
 \subsection{Formal Definition}
 
+Let $\mathbf{t} = (t_1, \ldots, t_N)$ be the tokenization of~$m$ using a TreebankWordTokenizer, with character spans $\phi(i) = (s_i, e_i)$ recording the position of each token in the original string. Define a similarity function
+\begin{equation}
+  \sigma : V \times \Sigma^* \to [0, 1]
+  \label{eq:sim}
+\end{equation}
+that scores how well a node's content matches a candidate text span. We use the fuzzy token-sort ratio between the node's OCR content and the candidate string, normalized to $[0, 1]$.
+
+An \emph{alignment} is a mapping
+\begin{equation}
+  \alpha : V \to \{(a, b) \mid 0 \leq a \leq b \leq N\}
+  \label{eq:alpha}
+\end{equation}
+assigning each node~$v$ a token interval $[a, b)$ where $0 \leq a \leq b \leq N$, and by extension (via~$\phi$) a character span in~$m$. When $a = b$, the interval is empty --- the node is assigned no tokens. This arises naturally when a node's content has no textual counterpart in~$m$ (e.g.\ a figure or separator region).
+
 \subsection{Constraints}
 
+The alignment must respect the tree structure. For a node~$v$ with children $(c_1, \ldots, c_n)$ and assigned interval $\alpha(v) = [a, b)$:
+\begin{enumerate}
+  \item \textbf{Coverage.} The children's intervals partition the parent's interval: $a = k_0 \leq k_1 \leq \cdots \leq k_n = b$, with $\alpha(c_i) = [k_{i-1}, k_i)$.
+  \item \textbf{Ordering.} The partition respects sibling order, preserving the reading order established during tree construction (\Cref{tab:tree_levels}).
+  \item \textbf{Nesting.} Every descendant's interval is contained within its ancestor's interval.
+\end{enumerate}
+
 \subsection{Quality of Alignment}
+
+For a node~$v$ with children $(c_1, \ldots, c_n)$ and interval $[a, b)$, the local alignment quality is the total similarity across the partition:
+\begin{equation}
+  Q(v) = \sum_{i=1}^{n} \sigma\left(c_i,\, \mathbf{t}_{k_{i-1}:k_i}\right)
+  \label{eq:quality}
+\end{equation}
+The optimal partition maximizes $Q(v)$ over all valid split points $a = k_0 \leq \cdots \leq k_n = b$. The global alignment quality is the sum of $Q(v)$ over all internal nodes of~$T$.
 
 \subsection{Algorithms}
 \label{sec:alignment_algorithms}
 
-\subsubsection{Dynamic Programming Formulation}
+We present three algorithms for solving the partition at each internal node, summarized in \Cref{tab:algo_comparison}. In all cases, let $n = |\text{children}|$ and $L = b - a$ be the length of the token interval.
+
+\subsubsection{Dynamic Programming}
+
+Define the recurrence:
+\begin{equation}
+  J(i, k) = \max_{0 \leq r \leq k} \Big[J(i-1, r) + \sigma\left(c_i,\, \mathbf{t}_{a+r:a+k}\right)\Big]
+  \label{eq:dp}
+\end{equation}
+with base case $J(0, k) = \sigma(c_1,\, \mathbf{t}_{a:a+k})$ for $0 \leq k \leq L$. Traceback from $J(n-1, L)$ recovers the optimal split points. This guarantees a globally optimal partition for the node at cost $O(nL^2)$.
 
 \subsubsection{Greedy}
-In the greedy approach, we make a series of choices, each of which looks best at the moment. This method is generally faster but may not always produce the optimal solution.
 
-\subsubsection{Hybrid Approach}
+The greedy algorithm processes children left to right. For each child~$c_i$ (except the last), it scans all candidate end positions $k \in [\mathrm{pos}, b]$ and selects the~$k$ that maximizes $\sigma(c_i, \mathbf{t}_{\mathrm{pos}:k})$. The last child receives the remaining interval. This runs in $O(nL)$ but may not find the global optimum.
 
-In the hybrid approach, we combine elements of both dynamic programming and greedy methods. We can assume that for some regions of text (math here) we can efficiently use DP. Whereas, when the depth of the branch exceeds a certain length we instead use the greedy algorithm to derive the locally optimal solution.
+\subsubsection{Hybrid}
 
-Gives us 
+The hybrid strategy selects the algorithm based on the interval length:
 \begin{equation}
-	\text{Alignment}(L) = 
-	\begin{cases}
-		\text{DP}(L) & \text{if } L < c \\
-		\text{GREEDY}(L) & \text{if } L \geq c
-	\end{cases}
+  \mathrm{Align}(v) =
+  \begin{cases}
+    \mathrm{DP}(v)     & \text{if } L \leq c \\
+    \mathrm{Greedy}(v) & \text{if } L > c
+  \end{cases}
+  \label{eq:hybrid}
+\end{equation}
+where $c$ is a threshold (we use $c = 100$). Short intervals receive the exact DP solution; long intervals fall back to the greedy approximation to avoid the quadratic cost.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of alignment algorithms. $n$~denotes the number of children and $L$~the token interval length at each internal node.}
+\label{tab:algo_comparison}
+\begin{tabular}{lcl}
+\toprule
+Algorithm & Complexity & Optimality \\
+\midrule
+Dynamic Programming & $O(nL^2)$ & Optimal \\
+Greedy              & $O(nL)$   & Locally optimal \\
+Hybrid ($c = 100$)  & $O(nL^2)$ if $L \leq c$;\; $O(nL)$ otherwise & Optimal when $L \leq c$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Recursive alignment.}
+The full alignment is computed by recursing from the root with interval $[0, N)$. At each internal node, the chosen algorithm partitions the parent's interval among its children, then recurses into each child. Leaf nodes (words) inherit their interval directly. The result is the complete mapping $\alpha$ of~\Cref{eq:alpha}, from which character spans are recovered via~$\phi$.
+
+\subsection{Reverse Alignment}
+
+Given an alignment~$\alpha$ and a query character span $[q_s, q_e)$ in~$m$, the reverse alignment finds all layout tree nodes whose aligned character span overlaps the query, along with an overlap ratio indicating what fraction of each node's span is covered:
+\begin{equation}
+  \mathrm{ReverseAlign}(q_s, q_e) = \left\{\left(v,\, \frac{|[q_s, q_e) \cap [n_s, n_e)|}{n_e - n_s}\right) \;\middle|\; v \in V,\; \alpha(v) \mapsto [n_s, n_e),\; [q_s, q_e) \cap [n_s, n_e) \neq \emptyset\right\}
+  \label{eq:reverse_align}
 \end{equation}
 
+This provides the inverse direction of provenance: given a passage of text, the reverse alignment identifies the visual tokens and layout regions on the page from which that passage originates, enabling spatial grounding of semantic queries; \textit{semantic provenance}.
 
 \section{Future Work}
 
@@ -276,31 +445,6 @@ Evaluation.
 \section{Conclusion}
 
 \bibliographystyle{unsrtnat}
-\bibliography{references}  %%% Uncomment this line and comment out the ``thebibliography'' section below to use the external .bib file (using bibtex) .
-
-
-%%% Uncomment this section and comment out the \bibliography{references} line above to use inline references.
-% \begin{thebibliography}{1}
-
-% 	\bibitem{kour2014real}
-% 	George Kour and Raid Saabne.
-% 	\newblock Real-time segmentation of on-line handwritten arabic script.
-% 	\newblock In {\em Frontiers in Handwriting Recognition (ICFHR), 2014 14th
-% 			International Conference on}, pages 417--422. IEEE, 2014.
-
-% 	\bibitem{kour2014fast}
-% 	George Kour and Raid Saabne.
-% 	\newblock Fast classification of handwritten on-line arabic characters.
-% 	\newblock In {\em Soft Computing and Pattern Recognition (SoCPaR), 2014 6th
-% 			International Conference of}, pages 312--318. IEEE, 2014.
-
-% 	\bibitem{keshet2016prediction}
-% 	Keshet, Renato, Alina Maor, and George Kour.
-% 	\newblock Prediction-Based, Prioritized Market-Share Insight Extraction.
-% 	\newblock In {\em Advanced Data Mining and Applications (ADMA), 2016 12th International 
-%                       Conference of}, pages 81--94,2016.
-
-% \end{thebibliography}
-
+\bibliography{references}
 
 \end{document}
