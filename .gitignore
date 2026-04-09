@@ -22,3 +22,5 @@ web/out/
 # Dev server PIDs
 .dev.pids
 .playwright-mcp
+
+.env
