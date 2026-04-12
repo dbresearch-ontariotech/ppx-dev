@@ -69,6 +69,25 @@ def page_markdown(filename: str, page_index: int):
     return PlainTextResponse(md_path.read_text())
 
 
+@app.get("/api/ppx/{filename}/{page_index}/markdown/ast")
+def page_markdown_ast(filename: str, page_index: int):
+    from ppx_align.core.storage import load
+    from ppx_align.core.md import build_parsed_doc, get_content
+    from ppx_align.core.types import MarkdownASTNode
+
+    _, md_doc = load(str(_output() / filename / str(page_index)))
+    doc = build_parsed_doc(md_doc)
+    ast_nodes = [
+        MarkdownASTNode(
+            ast_index=i,
+            type=node.type,
+            markdown=get_content(doc, ast_index=i),
+        )
+        for i, node in enumerate(doc.ast_nodes)
+    ]
+    return {"ast_nodes": [n.model_dump() for n in ast_nodes]}
+
+
 @app.get("/api/ppx/{filename}/{page_index}/markdown/{path:path}")
 def page_markdown_resource(filename: str, page_index: int, path: str):
     resource_path = _output() / filename / str(page_index) / "markdown" / path

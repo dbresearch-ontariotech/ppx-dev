@@ -86,15 +86,15 @@ class MarkdownDocument:
 
 @dataclass
 class ParsedDocument(MarkdownDocument):
-    segments: list[SyntaxTreeNode]
+    ast_nodes: list[SyntaxTreeNode]
     lines: list[str]
-    
-    # char_span for each segment
-    seg_spans: list[tuple[int, int]]
 
-    # for each segment, we have a list of tokens.
+    # char_span for each ast_node
+    ast_spans: list[tuple[int, int]]
+
+    # for each ast_node, we have a list of word tokens.
     # each token is a char_span
-    word_spans: list[list[tuple[int, int]]]
+    ast_word_spans: list[list[tuple[int, int]]]
 
 class BlockAlignmentTarget(BaseModel):
     ast_start: int
@@ -106,9 +106,9 @@ class BlockAlignment(BaseModel):
     alignment: dict[str, BlockAlignmentTarget]
 
 class CharAlignmentTarget(BaseModel):
-    segment_index_start: int
-    char_start: int # char offset relative to segment_index text.
-    segment_index_end: int
+    ast_index_start: int
+    char_start: int # char offset relative to ast_index_start node.
+    ast_index_end: int
     char_end: int
     score: float
 
@@ -119,3 +119,8 @@ class CharAlignment(BaseModel):
 class DocAlignment(BaseModel):
     block_alignments: dict[str, BlockAlignmentTarget]
     line_alignments: dict[str, CharAlignmentTarget]
+
+class MarkdownASTNode(BaseModel):
+    ast_index: int
+    type: str
+    markdown: str

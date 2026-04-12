@@ -22,8 +22,18 @@ GET /api/ppx/<filename>/<page_index>/thumbnail
 GET /api/ppx/<filename>/<page_index>/markdown/index.md
 - returns the markdown text as plain text that is located in the output path: <filename>/<page_index>/markdown/markdown.md
 
+GET /api/ppx/<filename>/<page_index>/markdown/ast
+- returns the markdown as a `MarkdownASTNode` array in JSON:
+  ```json
+  {
+    ast_nodes: [ ... ]
+  }
+  ```
+  Entries in `ast_nodes` should be instances of `MarkdownASTNode`.
+
 GET /api/ppx/<filename>/<page_index>/markdown/<path>
 - returns the binary resources (image, audio etc) located in the output path: <filename>/<page_index>/markdown/<path>
+
 
 ## Layout
 
