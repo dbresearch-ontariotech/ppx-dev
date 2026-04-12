@@ -75,3 +75,27 @@ def page_markdown_resource(filename: str, page_index: int, path: str):
     if not resource_path.exists():
         raise HTTPException(status_code=404, detail="Resource not found")
     return FileResponse(resource_path)
+
+
+@app.get("/api/ppx/{filename}/{page_index}/layout")
+def page_layout(filename: str, page_index: int):
+    from ppx_align.core.storage import load
+    from ppx_align.core.layout import build_layout_tree
+
+    page_dir = _output() / filename / str(page_index)
+    if not page_dir.is_dir():
+        raise HTTPException(status_code=404, detail="Page not found")
+    import pandas as pd
+    vl, _ = load(str(page_dir))
+    tree = build_layout_tree(vl)
+    tree = tree.where(pd.notna(tree), None)
+    return {"visual_tokens": tree.to_dict(orient="records")}
+
+
+@app.get("/api/ppx/{filename}/{page_index}/alignment")
+def page_alignment(filename: str, page_index: int):
+    from fastapi.responses import Response
+    alignment_path = _output() / filename / str(page_index) / "alignment.json"
+    if not alignment_path.exists():
+        raise HTTPException(status_code=404, detail="Alignment not found")
+    return Response(content=alignment_path.read_bytes(), media_type="application/json")

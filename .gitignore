@@ -24,3 +24,5 @@ web/out/
 .playwright-mcp
 
 .env
+old/
+.vscode/
