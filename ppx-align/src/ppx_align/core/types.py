@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pydantic import BaseModel
 from markdown_it.tree import SyntaxTreeNode
 import numpy as np
 import pandas as pd
@@ -94,3 +95,27 @@ class ParsedDocument(MarkdownDocument):
     # for each segment, we have a list of tokens.
     # each token is a char_span
     word_spans: list[list[tuple[int, int]]]
+
+class BlockAlignmentTarget(BaseModel):
+    ast_start: int
+    ast_end: int
+    score: float
+
+class BlockAlignment(BaseModel):
+    type: str = "block_alignment"
+    alignment: dict[str, BlockAlignmentTarget]
+
+class CharAlignmentTarget(BaseModel):
+    segment_index_start: int
+    char_start: int # char offset relative to segment_index text.
+    segment_index_end: int
+    char_end: int
+    score: float
+
+class CharAlignment(BaseModel):
+    type: str = "char_alignment"
+    alignment: dict[str, CharAlignmentTarget]
+
+class DocAlignment(BaseModel):
+    block_alignments: dict[str, BlockAlignmentTarget]
+    line_alignments: dict[str, CharAlignmentTarget]
