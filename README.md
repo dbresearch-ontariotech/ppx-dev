@@ -30,7 +30,7 @@ make install
 Run OCR on a PDF file:
 
 ```bash
-uv run ppx-ocr -o ../output/mydoc path/to/mydoc.pdf
+uv run ppx-ocr -o ../output/ path/to/mydoc.pdf
 ```
 
 This produces one subdirectory per page under `../output/mydoc/`:
