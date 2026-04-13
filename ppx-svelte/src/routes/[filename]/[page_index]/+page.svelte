@@ -1,14 +1,13 @@
 <script lang="ts">
-	import { appState, type LayoutNode, type TokenLevel } from '$lib/appstate.svelte';
+	import { appState, api, type LayoutNode, type TokenLevel } from '$lib/appstate.svelte';
 	import {
 		ResizablePaneGroup,
 		ResizablePane,
 		ResizableHandle,
 	} from '$lib/components/ui/resizable';
 	import PageViewer from '$lib/components/PageViewer.svelte';
+	import RenderMarkdownAST from '$lib/components/RenderMarkdownAST.svelte';
 
-	// Read showVisualTokens synchronously to establish reactive dependencies,
-	// then filter the resolved layout tokens accordingly.
 	const visibleTokens: Promise<LayoutNode[]> = $derived.by(() => {
 		const show = {
 			block: appState.showVisualTokens.get('block') ?? false,
@@ -38,6 +37,18 @@
 
 	<ResizablePane defaultSize={50} minSize={20}>
 		<div class="h-full overflow-auto p-4">
+			{#await appState.markdownAst}
+				<!-- loading: status badge in header already indicates this -->
+			{:then ast}
+				{#if ast && appState.filename != null && appState.pageIndex != null}
+					<RenderMarkdownAST
+						{ast}
+						baseurl={api.markdownResource(appState.filename, appState.pageIndex, '')}
+					/>
+				{/if}
+			{:catch err}
+				<p class="text-destructive text-sm">{err.message}</p>
+			{/await}
 		</div>
 	</ResizablePane>
 </ResizablePaneGroup>
