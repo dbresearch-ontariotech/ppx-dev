@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { appState, api, type LayoutNode, type TokenLevel, type BlockAlignment } from '$lib/appstate.svelte';
+	import { appState, api, type LayoutNode, type TokenLevel, type BlockAlignment, type LineAlignment } from '$lib/appstate.svelte';
 	import {
 		ResizablePaneGroup,
 		ResizablePane,
@@ -20,7 +20,7 @@
 	});
 
 	// Read activatedVisualTokens synchronously to establish reactive dependency,
-	// then resolve the alignment for each activated block node.
+	// then resolve the alignment for each activated node.
 	const activeAlignments: Promise<BlockAlignment[]> = $derived.by(() => {
 		const activatedIds = [...appState.activatedVisualTokens];
 		return appState.alignment.then((alignment) => {
@@ -28,6 +28,16 @@
 			return activatedIds
 				.map((id) => alignment.block_alignments[id])
 				.filter((ba): ba is BlockAlignment => ba != null);
+		});
+	});
+
+	const activeLineAlignments: Promise<LineAlignment[]> = $derived.by(() => {
+		const activatedIds = [...appState.activatedVisualTokens];
+		return appState.alignment.then((alignment) => {
+			if (!alignment || activatedIds.length === 0) return [];
+			return activatedIds
+				.map((id) => alignment.line_alignments[id])
+				.filter((la): la is LineAlignment => la != null);
 		});
 	});
 </script>
@@ -56,6 +66,7 @@
 					<RenderMarkdownAST
 						{ast}
 						{activeAlignments}
+						{activeLineAlignments}
 						baseurl={api.markdownResource(appState.filename, appState.pageIndex, '')}
 					/>
 				{/if}

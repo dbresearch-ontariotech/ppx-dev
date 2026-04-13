@@ -1,26 +1,32 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { TOKEN_LEVEL_COLORS, type BlockAlignment, type MarkdownASTNode } from '$lib/appstate.svelte';
+	import { TOKEN_LEVEL_COLORS, type BlockAlignment, type LineAlignment, type MarkdownASTNode } from '$lib/appstate.svelte';
 	import RenderMarkdownASTNode from './RenderMarkdownASTNode.svelte';
 
+	type CharRange = { start: number; end: number };
 	type Segment = { nodes: MarkdownASTNode[]; highlighted: boolean };
 
 	type Props = {
 		ast: MarkdownASTNode[];
 		baseurl: string;
 		activeAlignments?: Promise<BlockAlignment[]>;
+		activeLineAlignments?: Promise<LineAlignment[]>;
 	};
 
-	let { ast, baseurl, activeAlignments }: Props = $props();
+	let { ast, baseurl, activeAlignments, activeLineAlignments }: Props = $props();
 
 	let container: HTMLElement | undefined = $state();
 
 	$effect(() => {
-		const promise = activeAlignments ?? Promise.resolve([]);
-		promise.then(async (alignments) => {
-			if (alignments.length === 0) return;
+		const blockPromise = activeAlignments ?? Promise.resolve([]);
+		const linePromise = activeLineAlignments ?? Promise.resolve([]);
+		Promise.all([blockPromise, linePromise]).then(async ([alignments, lineAlignments]) => {
+			if (alignments.length === 0 && lineAlignments.length === 0) return;
 			await tick();
-			const target = container?.querySelector('[data-highlighted]');
+			// Prefer the char-level span; fall back to the block-level div.
+			const target =
+				container?.querySelector('[data-line-highlight]') ??
+				container?.querySelector('[data-highlighted]');
 			target?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 		});
 	});
@@ -44,10 +50,27 @@
 		}
 		return segments;
 	}
+
+	function getCharRanges(lineAlignments: LineAlignment[], astNode: MarkdownASTNode): CharRange[] {
+		const i = astNode.ast_index;
+		const len = astNode.markdown.length;
+		const ranges: CharRange[] = [];
+
+		for (const la of lineAlignments) {
+			if (i < la.ast_index_start || i > la.ast_index_end) continue;
+
+			const start = i === la.ast_index_start ? la.char_start : 0;
+			const end   = i === la.ast_index_end   ? la.char_end   : len;
+
+			if (start < end) ranges.push({ start, end });
+		}
+
+		return ranges;
+	}
 </script>
 
 <div bind:this={container}>
-{#await activeAlignments ?? Promise.resolve([]) then alignments}
+{#await Promise.all([activeAlignments ?? Promise.resolve([]), activeLineAlignments ?? Promise.resolve([])]) then [alignments, lineAlignments]}
 	{@const segments = buildSegments(alignments)}
 	{#each segments as segment (segment.nodes[0]?.ast_index)}
 		{#if segment.highlighted}
@@ -59,12 +82,20 @@
 				style:margin-bottom="0.5rem"
 			>
 				{#each segment.nodes as astNode (astNode.ast_index)}
-					<RenderMarkdownASTNode {astNode} {baseurl} />
+					<RenderMarkdownASTNode
+						{astNode}
+						{baseurl}
+						charRanges={getCharRanges(lineAlignments, astNode)}
+					/>
 				{/each}
 			</div>
 		{:else}
 			{#each segment.nodes as astNode (astNode.ast_index)}
-				<RenderMarkdownASTNode {astNode} {baseurl} />
+				<RenderMarkdownASTNode
+					{astNode}
+					{baseurl}
+					charRanges={getCharRanges(lineAlignments, astNode)}
+				/>
 			{/each}
 		{/if}
 	{/each}

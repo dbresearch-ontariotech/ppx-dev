@@ -7,9 +7,11 @@ import ppx_align.core.storage as storage
 import ppx_align.core.md as md
 import ppx_align.core.layout as layout
 import ppx_align.core.align as align
+import sys
 
+output = sys.argv[1] if len(sys.argv) > 1 else "../output/resnet"
 
-pages = sorted(Path("../output/paper").iterdir(), key=lambda d: int(d.name))
+pages = sorted(Path(output).iterdir(), key=lambda d: int(d.name))
 
 vls = []
 ocrs = []

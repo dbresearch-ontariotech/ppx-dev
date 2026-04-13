@@ -1,9 +1,19 @@
+import asyncio
 import os
+import random
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 
 app = FastAPI()
+
+
+@app.middleware("http")
+async def slow_response_middleware(request: Request, call_next):
+    response = await call_next(request)
+    if os.environ.get("PPX_SLOW"):
+        await asyncio.sleep(random.uniform(0.5, 2.0))
+    return response
 
 
 def _output() -> Path:

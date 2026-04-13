@@ -106,11 +106,14 @@ def build_cmd(
 def serve_cmd(
     output: Path = typer.Argument(..., help="Document output directory"),
     port: Annotated[int, typer.Option("--port", help="Port to listen on")] = 8000,
+    slow: Annotated[bool, typer.Option("--slow", help="Add random 0.5–2s delay to all responses (simulates slow connection)")] = False,
 ):
     """Start the web server."""
     import os
     import uvicorn
     os.environ["PPX_OUTPUT"] = str(output.resolve())
+    if slow:
+        os.environ["PPX_SLOW"] = "1"
     uvicorn.run("ppx_align.web:app", host="0.0.0.0", port=port, log_level="info", reload=True)
 
 
