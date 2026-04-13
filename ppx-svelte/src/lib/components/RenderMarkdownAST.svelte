@@ -82,20 +82,24 @@
 				style:margin-bottom="0.5rem"
 			>
 				{#each segment.nodes as astNode (astNode.ast_index)}
+					<div data-ast-index={astNode.ast_index}>
+						<RenderMarkdownASTNode
+							{astNode}
+							{baseurl}
+							charRanges={getCharRanges(lineAlignments, astNode)}
+						/>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			{#each segment.nodes as astNode (astNode.ast_index)}
+				<div data-ast-index={astNode.ast_index}>
 					<RenderMarkdownASTNode
 						{astNode}
 						{baseurl}
 						charRanges={getCharRanges(lineAlignments, astNode)}
 					/>
-				{/each}
-			</div>
-		{:else}
-			{#each segment.nodes as astNode (astNode.ast_index)}
-				<RenderMarkdownASTNode
-					{astNode}
-					{baseurl}
-					charRanges={getCharRanges(lineAlignments, astNode)}
-				/>
+				</div>
 			{/each}
 		{/if}
 	{/each}

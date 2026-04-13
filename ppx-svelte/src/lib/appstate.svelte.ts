@@ -41,6 +41,13 @@ export type LayoutNode = {
 	content: string;
 };
 
+export type SelectedMarkdownRange = {
+	ast_index_start: number; // inclusive
+	char_start: number;      // inclusive
+	ast_index_end: number;   // inclusive
+	char_end: number;        // exclusive
+} | null;
+
 export type BlockAlignment = {
 	ast_start: number;
 	ast_end: number;
@@ -138,6 +145,7 @@ class AppState {
 	// UI state
 	readonly activatedVisualTokens = new SvelteSet<string>();
 	rawSource = $state(true);
+	selectedMarkdownRange = $state<SelectedMarkdownRange>(null);
 
 	readonly showVisualTokens = new SvelteMap<TokenLevel, boolean>([
 		['block', false],

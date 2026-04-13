@@ -38,8 +38,37 @@
 			appState.rawSource = true;
 		}
 	});
+
+	function handleSelectionChange() {
+		const sel = window.getSelection();
+		if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+			appState.selectedMarkdownRange = null;
+			return;
+		}
+		const range = sel.getRangeAt(0);
+
+		const toEl = (n: Node) => (n instanceof Element ? n : n.parentElement);
+		const startEl = toEl(range.startContainer)?.closest('[data-ast-index]');
+		const endEl   = toEl(range.endContainer)?.closest('[data-ast-index]');
+		if (!startEl || !endEl) { appState.selectedMarkdownRange = null; return; }
+
+		const prefixLen = (el: Element, container: Node, offset: number) => {
+			const r = document.createRange();
+			r.setStart(el, 0);
+			r.setEnd(container, offset);
+			return r.toString().length;
+		};
+
+		appState.selectedMarkdownRange = {
+			ast_index_start: parseInt(startEl.getAttribute('data-ast-index')!),
+			char_start:      prefixLen(startEl, range.startContainer, range.startOffset),
+			ast_index_end:   parseInt(endEl.getAttribute('data-ast-index')!),
+			char_end:        prefixLen(endEl,   range.endContainer,   range.endOffset),
+		};
+	}
 </script>
 
+<svelte:document onselectionchange={handleSelectionChange} />
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
@@ -122,8 +151,29 @@
 				{/if}
 			</span>
 			{#if appState.activatedVisualTokens.size > 0}
+				{#await Promise.all([appState.layout, appState.alignment]) then [layout, alignment]}
+					{@const nodeMap = new Map(layout?.map((n) => [n.node_id, n]) ?? [])}
+					{#each [...appState.activatedVisualTokens] as id (id)}
+						{@const node  = nodeMap.get(id)}
+						{@const label = node?.parent_id ? `${node.parent_id}/${id}` : id}
+						{@const block = alignment?.block_alignments[id]}
+						{@const line  = alignment?.line_alignments[id]}
+						<span class="text-muted-foreground font-mono text-xs">[{label}]</span>
+						{#if line}
+							<span class="font-mono text-xs" style:color={TOKEN_LEVEL_COLORS['line']}>
+								{line.ast_index_start}:{line.char_start}–{line.ast_index_end}:{line.char_end}
+							</span>
+						{:else if block}
+							<span class="font-mono text-xs" style:color={TOKEN_LEVEL_COLORS['block']}>
+								{block.ast_start}–{block.ast_end}
+							</span>
+						{/if}
+					{/each}
+				{/await}
+			{/if}
+			{#if appState.selectedMarkdownRange}
 				<span class="text-muted-foreground font-mono text-xs">
-					[{[...appState.activatedVisualTokens].join(', ')}]
+					{appState.selectedMarkdownRange.ast_index_start}:{appState.selectedMarkdownRange.char_start} to {appState.selectedMarkdownRange.ast_index_end}:{appState.selectedMarkdownRange.char_end}
 				</span>
 			{/if}
 			{#if appState.pageIndex != null}
