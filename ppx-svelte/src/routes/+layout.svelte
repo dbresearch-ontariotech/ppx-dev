@@ -32,6 +32,12 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 
 	let { children } = $props();
+
+	$effect(() => {
+		if (appState.activatedVisualTokens.size > 0) {
+			appState.rawSource = true;
+		}
+	});
 </script>
 
 <svelte:head>
@@ -115,8 +121,21 @@
 					Select a document
 				{/if}
 			</span>
+			{#if appState.activatedVisualTokens.size > 0}
+				<span class="text-muted-foreground font-mono text-xs">
+					[{[...appState.activatedVisualTokens].join(', ')}]
+				</span>
+			{/if}
 			{#if appState.pageIndex != null}
 				<div class="ml-auto flex items-center gap-4">
+					<label class="flex cursor-pointer items-center gap-1.5">
+						<Checkbox
+							checked={appState.rawSource}
+							onCheckedChange={(v) => (appState.rawSource = !!v)}
+						/>
+						<span class="text-muted-foreground text-sm">Raw</span>
+					</label>
+					<Separator orientation="vertical" class="h-4" />
 					<div class="flex items-center gap-3">
 						{#each (['block', 'line', 'word'] as TokenLevel[]) as level (level)}
 							<label

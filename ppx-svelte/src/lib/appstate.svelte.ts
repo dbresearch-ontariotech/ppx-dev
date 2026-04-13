@@ -137,6 +137,7 @@ class AppState {
 
 	// UI state
 	readonly activatedVisualTokens = new SvelteSet<string>();
+	rawSource = $state(true);
 
 	readonly showVisualTokens = new SvelteMap<TokenLevel, boolean>([
 		['block', false],

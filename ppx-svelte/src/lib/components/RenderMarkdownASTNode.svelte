@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { TOKEN_LEVEL_COLORS, type MarkdownASTNode } from '$lib/appstate.svelte';
+	import { TOKEN_LEVEL_COLORS, appState, type MarkdownASTNode } from '$lib/appstate.svelte';
 	import Markdown from './Markdown.svelte';
 
 	type CharRange = { start: number; end: number };
@@ -40,13 +40,9 @@
 		return result;
 	}
 
-	const markdown = $derived(
-		// Step 1: apply char highlights using original offsets from the backend.
-		// Step 2: rewrite relative image URLs (after highlights, so offsets stay valid).
-		// Step 3: fix OCR bug — missing space before opening $ of inline LaTeX.
-		//         Match a complete $...$ span preceded by a non-space char and insert the space.
-		//         Matching the full span avoids misidentifying a closing $ as an opener.
-		applyHighlights(astNode.markdown, charRanges)
+	// Rewrite relative image URLs (both markdown and HTML img syntax).
+	function rewriteImageUrls(src: string): string {
+		return src
 			.replace(
 				/!\[([^\]]*)\]\((?!https?:\/\/|\/)([^)]+)\)/g,
 				(_, alt, url) => `![${alt}](${baseurl}${url})`
@@ -54,9 +50,23 @@
 			.replace(
 				/(<img\s[^>]*src=)(["'])(?!https?:\/\/|\/)([^"']+)\2/gi,
 				(_, tag, quote, url) => `${tag}${quote}${baseurl}${url}${quote}`
-			)
+			);
+	}
+
+	// For rendered mode: highlights → URL rewrite → LaTeX space fix → marked parses everything.
+	const markdown = $derived(
+		rewriteImageUrls(applyHighlights(astNode.markdown, charRanges))
 			.replace(/(?<![$\s\\])\$/g, ' $')
+	);
+
+	// For raw mode: highlights → URL rewrite → convert ![alt](url) to <img> for display in <pre>.
+	const rawMarkdown = $derived(
+		rewriteImageUrls(applyHighlights(astNode.markdown, charRanges))
+			.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">')
 	);
 </script>
 
-<Markdown {markdown} />
+<Markdown
+	markdown={appState.rawSource ? rawMarkdown : markdown}
+	rawSource={appState.rawSource}
+/>

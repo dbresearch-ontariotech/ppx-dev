@@ -5,16 +5,21 @@
 
 	marked.use(markedKatex({ throwOnError: false }));
 
-	type Props = { markdown: string };
-	let { markdown }: Props = $props();
+	type Props = { markdown: string; rawSource?: boolean };
+	let { markdown, rawSource = false }: Props = $props();
 
-	const html = $derived(marked.parse(markdown) as string);
+	const html = $derived(rawSource ? '' : (marked.parse(markdown) as string));
 </script>
 
-<div class="markdown">
+{#if rawSource}
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-	{@html html}
-</div>
+	<pre class="raw-source">{@html markdown}</pre>
+{:else}
+	<div class="markdown">
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+		{@html html}
+	</div>
+{/if}
 
 <style>
 	/* Headings */
@@ -182,5 +187,14 @@
 		border: 1px solid oklch(0.88 0 0);
 		border-radius: 4px;
 		max-width: 100%;
+	}
+
+	.raw-source {
+		font-family: ui-monospace, monospace;
+		font-size: 0.8rem;
+		line-height: 1.6;
+		white-space: pre-wrap;
+		word-break: break-word;
+		margin-bottom: 0.75rem;
 	}
 </style>
