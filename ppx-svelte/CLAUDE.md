@@ -123,3 +123,22 @@ The project will only use shadcn-svelte framework for all its UI components.
 - [Getting Started](https://shadcn-svelte.com/docs/registry/getting-started.md): Learn how to get setup and run your own component registry.
 - [registry-item.json](https://shadcn-svelte.com/docs/registry/registry-item-json.md): Specification for registry items.
 - [registry.json](https://shadcn-svelte.com/docs/registry/registry-json.md): Schema for running your own component registry.
+
+# Svelte language notes
+
+- .svelte.ts: Cannot export derived state from a module directly — even `export const x = $derived.by(...)` is rejected by the compiler. The correct pattern is to hold derived fields inside a class and export the class instance:
+
+    ```ts
+    class AppState {
+        value1 = $derived.by(() => {
+            // reactive computation
+            return result;
+        });
+
+        value2 = $derived.by(myFunction);
+    }
+
+    export const appState = new AppState();
+    ```
+
+    Consumers import `appState` and access `appState.value1`, `appState.value2`, etc. The class instance is exported as a plain object reference; the reactive fields inside it remain live.
