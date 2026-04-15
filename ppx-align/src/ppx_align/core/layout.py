@@ -28,7 +28,7 @@ def _intersection_over_child(cx0, cy0, cx1, cy1, parents: pd.DataFrame) -> pd.Se
 def _assign_parents(
     children: pd.DataFrame,
     parent_nodes: pd.DataFrame,
-    tolerance: float = 0.8,
+    tolerance: float,
 ) -> list:
     result = []
     for _, crow in children.iterrows():
@@ -45,7 +45,7 @@ def _assign_parents(
 
 def build_layout_tree(
     vl: VisualLayers,
-    tolerance: float = 0.8,
+    tolerance: float = 0.70,
 ) -> DataFrame[LayoutTreeSchema]:
     area = ((vl.regions["x1"] - vl.regions["x0"]) * (vl.regions["y1"] - vl.regions["y0"])).clip(lower=0)
     regions_sorted = vl.regions.iloc[area.argsort()[::-1]]

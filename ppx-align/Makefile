@@ -3,11 +3,9 @@
 install:
 	uv sync
 
-build-layout-tree:
-	uv run ppx-align process build-layout-tree ../output/paper/ --overwrite
 
-align-layout-tree:
-	uv run ppx-align process align-layout-tree ../output/paper/ --overwrite
+build:
+	uv run ppx-align build ../output/resnet
 
 serve:
-	uv run ppx-align server start --data ../output --delay 500
+	uv run ppx-align server ../output --slow
