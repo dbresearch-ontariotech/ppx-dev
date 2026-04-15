@@ -8,5 +8,5 @@ install:
 	cp -r ./patch/* .venv/
 
 ocr:
-	uv run ppx-ocr -o ../output ./samples/paper.pdf
+	uv run ppx-ocr -o ../output ../samples/resnet.pdf
 

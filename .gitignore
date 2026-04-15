@@ -13,6 +13,7 @@ wheels/
 # Output
 output/
 cache/
+paper/
 
 # Next.js
 web/node_modules/
@@ -26,3 +27,4 @@ web/out/
 .env
 old/
 .vscode/
+
