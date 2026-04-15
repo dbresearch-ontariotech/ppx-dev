@@ -162,10 +162,12 @@
 						{#if line}
 							<span class="font-mono text-xs" style:color={TOKEN_LEVEL_COLORS['line']}>
 								{line.ast_index_start}:{line.char_start}–{line.ast_index_end}:{line.char_end}
+								({line.score.toFixed(3)})
 							</span>
 						{:else if block}
 							<span class="font-mono text-xs" style:color={TOKEN_LEVEL_COLORS['block']}>
 								{block.ast_start}–{block.ast_end}
+								({block.score.toFixed(3)})
 							</span>
 						{/if}
 					{/each}
