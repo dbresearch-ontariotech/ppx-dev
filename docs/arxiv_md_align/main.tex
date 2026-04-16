@@ -55,7 +55,7 @@
 
 \newcommand{\todo}{\textcolor{red}{TODO}}
 
-\title{}
+\title{Multimodal Document Alignment: Bridging Visual Layout Trees and OCR-Extracted Markdown}
 
 % Here you can change the date presented in the paper title
 \date{April, 2026}
@@ -109,24 +109,1356 @@
 %%% Once the PDF is generated, you can check the metadata with
 %%% $ pdfinfo template.pdf
 \hypersetup{
-  pdftitle={},
-  pdfsubject={},
-  pdfauthor={},
-  pdfkeywords={},
+  pdftitle={Multimodal Document Alignment: Bridging Visual Layout Trees and OCR-Extracted Markdown},
+  pdfsubject={Document understanding, layout analysis, multimodal alignment},
+  pdfauthor={Levi Willms; Ken Pu},
+  pdfkeywords={document understanding, layout analysis, OCR, sequence alignment, multimodal document processing},
 }
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
+  \textbf{Problem.}
+  \begin{itemize}
+    \item A document page image admits two complementary representations:
+          \begin{itemize}
+            \item \emph{Visual tokens} --- labelled bounding boxes arranged in a
+                  hierarchical Layout Tree $\LT$ produced by a layout analyzer.
+            \item \emph{Text tokens} --- the natural-language token sequence of an
+                  OCR-generated Markdown document $\MD \in \mathbf{Char}^{*}$.
+          \end{itemize}
+    \item Neither view alone preserves the full semantics of the page: the layout
+          tree lacks transcription, and the Markdown stream lacks spatial structure.
+    \item \textbf{Goal.} Assign every node of $\LT$ a contiguous, monotone span of
+          $\MD$ --- the \emph{layout--text alignment problem}.
+  \end{itemize}
 
+  \medskip
+  \textbf{Contributions.}
+  \begin{enumerate}
+    \item \textbf{Formal model.} We cast multimodal alignment as the assignment of
+          layout-tree nodes to contiguous spans of $\MD$, with a set-theoretic
+          treatment of visual tokens, textual tokens, and the mapping between them.
+    \item \textbf{Composable pipeline.} We realise the model as an embedding-based
+          hierarchical aligner --- max-weight bipartite matching over cosine
+          similarities of sentence embeddings, solved via the Jonker--Volgenant
+          shortest-augmenting-path algorithm at both block and line granularities
+          --- packaged as a type-safe Python implementation on PaddleOCR /
+          PPStructure\,V3 with a client/server architecture for interactive
+          AI-assisted document reading.
+    \item \textbf{Epistemological finding.} We show that token-level alignment
+          correctness in visual-OCR document pipelines is not adjudicable by any
+          existing dataset or proxy method --- a structural constraint on the field
+          rather than a temporary gap --- and outline what a valid benchmark would
+          require.
+  \end{enumerate}
 \end{abstract}
 
 % keywords can be removed
-\keywords{}
+\keywords{document understanding \and layout analysis \and OCR \and sequence alignment \and
+  multimodal document processing \and PaddleOCR}
 
-% Sections go here
+%% ---------------------------------------------------------------
+\section{Introduction}
+\label{sec:intro}
+%% ---------------------------------------------------------------
 
+\paragraph{Two incomplete views of a page.}
+\begin{itemize}
+  \item Optical character recognition reduces a document image to a
+        linearised text stream, discarding the spatial structure that
+        a reader uses to navigate a page \cite{ieee2025systematic}.
+  \item Document layout analysis recovers that spatial structure as
+        a hierarchy of labelled bounding boxes
+        \cite{PPDocLayout, wang2024dlaformer}, but says nothing about
+        the textual content those boxes contain.
+  \item Modern toolkits such as PaddleOCR / PPStructure\,V3
+        \cite{PaddleOCR30} produce both views of the same page, yet
+        offer no principled correspondence between them.  Downstream
+        tasks --- retrieval-augmented generation over documents,
+        AI-assisted reading, table and formula grounding --- demand
+        exactly that correspondence.
+\end{itemize}
+
+\paragraph{The layout--text alignment problem.}
+\begin{itemize}
+  \item Given the Layout Tree $\LT$ produced by a layout analyser and
+        the Markdown document $\MD$ produced by an OCR engine, assign
+        to each visual token a span of $\MD$ that reproduces its
+        transcription.
+  \item Neither the Layout Tree nor the Markdown stream alone carries
+        enough information to drive structured document understanding;
+        the alignment is the load-bearing representation.
+  \item Despite its practical importance, the problem lacks a crisp
+        formal statement and an established evaluation protocol in the
+        literature.
+\end{itemize}
+
+\paragraph{What this thesis contributes.}
+\begin{itemize}
+  \item A \textbf{set-theoretic formulation} of multimodal alignment
+        (\cref{sec:formal}) that separates the four-level Layout Tree
+        from the Markdown AST and poses alignment as a pair of partial
+        injective functions scored by semantic similarity.
+  \item A \textbf{composable pipeline} (\cref{sec:algo,sec:impl})
+        realising the model: sentence-embedding encoding of both
+        modalities, hierarchical max-weight bipartite matching via the
+        Jonker--Volgenant algorithm at block and line granularities,
+        and a type-safe client/server system for interactive
+        inspection.
+  \item An \textbf{epistemological finding}
+        (\cref{sec:failure,sec:unattainable}): in the course of
+        building an evaluation protocol we concluded that no existing
+        dataset or proxy method can adjudicate token-level alignment
+        correctness, that each candidate approach fails for a
+        structurally distinct reason, and that building a proper
+        benchmark is itself a distinct research effort.
+\end{itemize}
+
+\paragraph{Scope and narrative remark.}
+\begin{itemize}
+  \item An earlier iteration of this work formulated alignment as a
+        monotone interval-partition problem solved by dynamic
+        programming, with a greedy approximation and a hybrid
+        threshold.  A pilot evaluation of that formulation against a
+        PDFMiner + NLM-XML reference is what surfaced the unverifiability
+        argument of \cref{sec:unattainable}; the present embedding-based
+        algorithm supersedes it.
+  \item We restrict attention to English-language academic PDFs
+        rendered by PaddleOCR / PPStructure\,V3; multi-script,
+        handwritten, and historical material are out of scope.
+\end{itemize}
+
+\paragraph{Organisation.}
+\begin{itemize}
+  \item \cref{sec:related} surveys OCR, layout analysis, and
+        reading-order recovery.
+  \item \cref{sec:formal} formalises the alignment problem.
+  \item \cref{sec:algo} presents the embedding-based hierarchical
+        aligner.
+  \item \cref{sec:impl} describes the three-package implementation
+        (\texttt{ppx-ocr}, \texttt{ppx-align}, \texttt{ppx-svelte}).
+  \item \cref{sec:failure} describes our inspection methodology, and
+        \cref{sec:unattainable} develops the unverifiability argument.
+  \item \cref{sec:conclusion} concludes with limitations and future
+        work.
+\end{itemize}
+
+%% ---------------------------------------------------------------
+\section{Related Work}
+\label{sec:related}
+%% ---------------------------------------------------------------
+
+\subsection{Optical Character Recognition}
+% Suggested citations:
+%   \cite{ieee2025systematic}   -- systematic review of ML-based text recognition
+%   \cite{yao2025analysis}      -- advancements in OCR for handwriting
+%   \cite{PaddleOCRv3}          -- lightweight OCR backbone
+%   \cite{PaddleOCR30}          -- full pipeline including layout parsing
+%   \cite{paddleocrvl2025}      -- vision-language OCR
+%   \cite{gupta2025brahmi}      -- CNN-based OCR application (historical scripts)
+
+\subsection{Document Layout Analysis}
+% Suggested citations:
+%   \cite{PPDocLayout}          -- unified detection model
+%   \cite{wang2024dlaformer}    -- end-to-end transformer for DLA
+%   \cite{tewes2025sfdla}       -- source-free domain adaptation
+%   \cite{scan2025semantic}     -- semantic DLA for RAG
+%   \cite{gdsa2025graph}        -- graph-based structure analysis
+
+\subsection{Reading Order and Structure Extraction}
+% Suggested citations:
+%   \cite{zhang2024modeling}    -- reading order as ordering relations
+%   \cite{eclair2025extracting} -- integrated content/layout/reading-order
+
+%% ---------------------------------------------------------------
+\section{Problem Formulation}
+\label{sec:formal}
+%% ---------------------------------------------------------------
+
+We give a set-theoretic account of the two representations of a page and
+cast \emph{multimodal alignment} as a mapping between them.  Throughout
+this section, $\Lambda$ denotes a finite set of layout labels and $\Sigma$
+the Unicode character set.
+
+\subsection{Document Representations}
+
+\begin{definition}[Raster Document]
+  A \emph{raster document} is a finite sequence of page images
+  $D = \langle d_1, d_2, \ldots, d_P \rangle$, where each page
+  $d_p \in \mathbb{R}^{H \times W \times 3}$ is an RGB image.  All
+  subsequent definitions apply to a single page; the page index $p$ is
+  dropped for brevity.
+\end{definition}
+
+\begin{definition}[Bounding Box]
+  A \emph{bounding box} over label set $\Lambda$ is a tuple
+  \[
+    b = (x_0,\, y_0,\, x_1,\, y_1,\, \lambda)
+    \;\in\; \mathbb{N}^4 \times \Lambda,
+  \]
+  with top-left corner $(x_0, y_0)$, bottom-right corner $(x_1, y_1)$, and
+  semantic label $\lambda \in \Lambda$ (e.g.\ \texttt{paragraph},
+  \texttt{figure}, \texttt{table}).  The \emph{area} of $b$ is
+  $\mathrm{area}(b) = (x_1 - x_0)(y_1 - y_0)$.
+\end{definition}
+
+\begin{definition}[Containment]
+  Bounding box $b'$ is \emph{contained in} $b$, written $b' \sqsubseteq b$,
+  if and only if
+  \[
+    \frac{\mathrm{area}(b \cap b')}{\mathrm{area}(b')} \;\ge\; \tau,
+  \]
+  for a fixed tolerance $\tau \in (0, 1]$, where $b \cap b'$ denotes the
+  rectangular intersection.  We use $\tau = 0.8$ throughout.
+\end{definition}
+
+\subsection{Visual Tokens and the Layout Tree}
+
+The layout analyser \cite{PPDocLayout, PaddleOCR30} parses a page into a
+four-level hierarchy of labelled bounding boxes.
+
+\begin{definition}[Visual Token Layers]
+  A page is analysed into four ordered token layers:
+  \begin{itemize}
+    \item $R = \{r_i\}$ --- \emph{region} bounding boxes (coarsest granularity)
+    \item $K = \{k_j\}$ --- \emph{block} bounding boxes, each carrying a
+          reading-order index $\mathrm{ord}(k_j) \in \mathbb{N}$
+          \cite{zhang2024modeling}
+    \item $\ell = \{\ell_m\}$ --- \emph{line} bounding boxes, sorted by $y_0$
+    \item $W = \{w_n\}$ --- \emph{word} bounding boxes, grouped by line membership
+  \end{itemize}
+  Each visual token $v$ is additionally annotated with its OCR transcription
+  $\mathrm{content}(v) \in \Sigma^{*}$.
+\end{definition}
+
+\begin{definition}[Layout Tree]
+  \label{def:lt}
+  The \emph{Layout Tree} $\LT$ is a rooted tree with node set
+  $\Nodes = R \cup K \cup \ell \cup W$ and edges given by containment:
+  \[
+    \mathrm{parent}(v) = \arg\max_{u \in \mathrm{level}(v)-1}
+    \frac{\mathrm{area}(u \cap v)}{\mathrm{area}(v)},
+  \]
+  where $\mathrm{level}(v) \in \{0,1,2,3\}$ denotes region, block, line, and
+  word.  Children of each internal node are sorted by reading order.
+  See \cref{fig:layout-tree}.
+\end{definition}
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[
+      level distance=14mm,
+      level 1/.style={sibling distance=72mm},
+      level 2/.style={sibling distance=28mm},
+      level 3/.style={sibling distance=22mm},
+      every node/.style={draw, rounded corners, font=\small,
+          inner sep=4pt, minimum width=18mm},
+      region/.style={fill=blue!15},
+      block/.style={fill=green!15},
+      line/.style={fill=orange!15},
+      word/.style={fill=red!10, minimum width=10mm},
+      edge from parent/.style={draw, ->, >=Stealth},
+    ]
+    \node[region] {Region $r_1$}
+    child { node[block] {Block $k_1$}
+        child { node[line] {Line $\ell_1$}
+            child { node[word] {$w_1$} }
+            child { node[word] {$w_2$} }
+          }
+        child { node[line] {Line $\ell_2$}
+            child { node[word] {$w_3$} }
+          }
+      }
+    child { node[block] {Block $k_2$}
+        child { node[line] {Line $\ell_3$}
+            child { node[word] {$w_4$} }
+            child { node[word] {$w_5$} }
+          }
+      };
+  \end{tikzpicture}
+  \caption{Schematic of the Layout Tree $\LT$.  Colours denote hierarchy
+    levels: \textcolor{blue!60}{region} $\supset$
+    \textcolor{green!60!black}{block} $\supset$
+    \textcolor{orange!80!black}{line} $\supset$
+    \textcolor{red!60}{word}.
+    Children within each level are ordered by reading order.}
+  \label{fig:layout-tree}
+\end{figure}
+
+\subsection{Text Tokens and the Markdown Document}
+
+The OCR engine \cite{PaddleOCR30, eclair2025extracting} produces a single
+Markdown string $\MD \in \Sigma^{*}$.  Parsing $\MD$ with a Markdown parser
+yields a structured view suitable for alignment.
+
+\begin{definition}[Markdown Document and AST]
+  A \emph{parsed Markdown document} is a tuple
+  \[
+    \MD = (\mu,\; \mathcal{A},\; \sigma,\; \omega),
+  \]
+  where
+  \begin{itemize}
+    \item $\mu \in \Sigma^{*}$ is the raw Markdown string;
+    \item $\mathcal{A} = \langle a_0, a_1, \ldots, a_{N-1}\rangle$ is the
+          ordered list of leaf \emph{AST nodes} (paragraphs, list items,
+          headings, code blocks, etc.) in document order;
+    \item $\sigma : \mathcal{A} \to \mathbb{N} \times \mathbb{N}$ assigns to
+          each AST node $a_i$ a character span
+          $\sigma(a_i) = [s_i, e_i) \subseteq [0, |\mu|)$;
+    \item $\omega : \mathcal{A} \to (\mathbb{N}\times\mathbb{N})^{*}$
+          assigns to each AST node $a_i$ an ordered list of
+          \emph{word spans} $\omega(a_i) = \langle[p_{i,1}, q_{i,1}), \ldots\rangle$
+          relative to the node's content.
+  \end{itemize}
+  See \cref{fig:text-tokens}.
+\end{definition}
+
+\begin{definition}[AST-Node Range]
+  An \emph{AST-node range} is a half-open integer interval
+  $[i, j) \subseteq [0, N)$ selecting the contiguous sub-sequence
+  $\mathcal{A}[i{:}j]$ of leaf nodes.  Its induced character span is
+  $\widetilde{\sigma}([i,j)) = [s_i,\; e_{j-1}) \subseteq [0, |\mu|)$.
+  Denote by $\Spans_{\mathcal{A}}$ the set of all such AST-node ranges.
+\end{definition}
+
+\begin{definition}[Word-Bounded Character Sub-Span]
+  For any AST-node range $[i,j)$, a \emph{word-bounded sub-span} is a
+  character interval $[c_{\text{s}}, c_{\text{e}}) \subseteq
+    \widetilde{\sigma}([i,j))$ whose endpoints coincide with word-span
+  boundaries in $\bigcup_{k = i}^{j-1}\omega(a_k)$.  Denote by
+  $\Spans_{W}$ the set of all such sub-spans.
+\end{definition}
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[
+      tok/.style={draw, fill=gray!8, font=\small, inner sep=3pt,
+          minimum height=0.52cm, minimum width=3.2cm, text centered},
+    ]
+    % Header
+    \node[font=\small\bfseries] (hdr) at (0, 0.55)
+    {$\mathcal{A} = \langle a_0,\; a_1,\; \ldots,\; a_{N-1} \rangle$};
+
+    % AST-node boxes stacked vertically
+    \foreach \i/\lab/\span in {
+    0/$a_0$ {\scriptsize\textit{heading}}/{\scriptsize$[s_0,e_0)$},
+      1/$a_1$ {\scriptsize\textit{paragraph}}/{\scriptsize$[s_1,e_1)$},
+      2/$a_2$ {\scriptsize\textit{paragraph}}/{\scriptsize$[s_2,e_2)$},
+      3/$a_3$ {\scriptsize\textit{list item}}/{\scriptsize$[s_3,e_3)$},
+      4/$a_4$ {\scriptsize\textit{list item}}/{\scriptsize$[s_4,e_4)$},
+      5/$a_5$ {\scriptsize\textit{paragraph}}/{\scriptsize$[s_5,e_5)$},
+      6/$a_6$ {\scriptsize\textit{code}}/{\scriptsize$[s_6,e_6)$},
+      7/$a_7$ {\scriptsize\textit{paragraph}}/{\scriptsize$[s_7,e_7)$}}{
+      \node[tok] (T\i) at (0, {-\i*0.65}) {\lab};
+      \node[font=\scriptsize, gray, left=2mm of T\i] {\i};
+      \node[font=\scriptsize, gray, right=2mm of T\i] {\span};
+      }
+
+      % Brace showing an example AST-node range [2,6)
+      \draw[decorate,
+        decoration={brace, amplitude=6pt, mirror},
+        thick, red!65!black]
+      ([xshift=-1.4cm]T2.north west) --
+      ([xshift=-1.4cm]T5.south west)
+      node[midway, left=5mm, font=\small, red!65!black] {$[2,\,6)$};
+
+    \node[font=\small, gray] at (0, {-8*0.65}) {$\vdots$};
+  \end{tikzpicture}
+  \caption{The AST-node sequence $\mathcal{A}$ obtained by parsing the
+  OCR-generated Markdown $\MD$.  Nodes are indexed $0 \ldots N{-}1$ (left)
+  and each carries a character span $[s_i, e_i) \subseteq [0, |\mu|)$
+  (right).  The red brace marks an example \emph{AST-node range} $[2,6)$,
+  inducing the contiguous character span $[s_2, e_5)$ of $\mu$.}
+  \label{fig:text-tokens}
+\end{figure}
+
+\subsection{The Alignment Problem}
+
+The new algorithm aligns visual tokens to Markdown at two granularities:
+blocks to AST-node ranges, and lines to word-bounded character sub-spans
+within each block's range.  We formalise both as \emph{partial} functions
+with a rejection regime governed by a similarity threshold.
+
+\begin{definition}[Semantic Embedding]
+  A \emph{semantic embedding} is a function
+  $\varepsilon : \Sigma^{*} \to \mathbb{R}^{d}$ that maps a string to a
+  $d$-dimensional unit vector.  We realise $\varepsilon$ with a
+  Sentence-BERT encoder \cite{reimers2019sbert, wang2020minilm}.
+\end{definition}
+
+\begin{definition}[Similarity Function]
+  Given embedding $\varepsilon$, the \emph{similarity} between a visual
+  token $v$ with transcription $\mathrm{content}(v)$ and a text fragment
+  $y \in \Sigma^{*}$ is the cosine similarity of their embeddings:
+  \[
+    \mathrm{sim}(v,\, y) \;=\;
+    \frac{\varepsilon(\mathrm{content}(v)) \cdot \varepsilon(y)}
+    {\lVert \varepsilon(\mathrm{content}(v)) \rVert\,
+      \lVert \varepsilon(y) \rVert}
+    \;\in\; [-1, 1].
+  \]
+\end{definition}
+
+\begin{definition}[Block Alignment]
+  \label{def:block-align}
+  Let $K \subseteq \Nodes$ be the set of block visual tokens and
+  $\Spans_{\mathcal{A}}$ the AST-node ranges of $\MD$.  A \emph{block
+    alignment} is a partial injective function
+  \[
+    \phi_K \;:\; K \;\rightharpoonup\; \Spans_{\mathcal{A}}.
+  \]
+  Given threshold $\theta \in [-1, 1]$, $\phi_K$ is \emph{valid} if, for
+  every $k \in \mathrm{dom}(\phi_K)$,
+  $\mathrm{sim}(k,\, \mu[\widetilde{\sigma}(\phi_K(k))]) \ge \theta$.
+\end{definition}
+
+\begin{definition}[Line Alignment]
+  \label{def:line-align}
+  For each block $k \in \mathrm{dom}(\phi_K)$, let $L_k \subseteq \Nodes$
+  be its line children in $\LT$ and let $\Spans_{W}^{(k)}$ be the set of
+  word-bounded sub-spans of the character range
+  $\widetilde{\sigma}(\phi_K(k))$.  A \emph{line alignment conditioned on
+    $k$} is a partial injective function
+  \[
+    \phi_\ell^{(k)} \;:\; L_k \;\rightharpoonup\; \Spans_{W}^{(k)},
+  \]
+  valid under threshold $\theta$ analogously to \cref{def:block-align}.
+\end{definition}
+
+\begin{definition}[Multimodal Alignment]
+  The \emph{multimodal alignment problem} is, given $\LT$, $\MD$,
+  embedding $\varepsilon$, and threshold $\theta$, to compute the pair
+  $(\phi_K^{*},\, \{\phi_\ell^{(k)*}\}_{k\in\mathrm{dom}(\phi_K^{*})})$ that
+  maximises the total similarity score
+  \[
+    \sum_{k \in \mathrm{dom}(\phi_K)}
+    \!\!\mathrm{sim}(k, \mu[\widetilde{\sigma}(\phi_K(k))])
+    \;+\;
+    \sum_{k}\;\sum_{\ell \in \mathrm{dom}(\phi_\ell^{(k)})}
+    \!\!\mathrm{sim}(\ell,\, \mu[\phi_\ell^{(k)}(\ell)])
+  \]
+  over all valid alignments.  See \cref{fig:alignment}.
+\end{definition}
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[
+      nd/.style={draw, rounded corners, font=\small, inner sep=3pt,
+          minimum height=0.50cm, minimum width=2.3cm, text centered},
+      tok/.style={draw, fill=gray!8, font=\small, inner sep=2pt,
+          minimum height=0.52cm, minimum width=1.3cm, text centered},
+      conn/.style={dotted, thick},
+    ]
+
+    % ---- AST-node column (LEFT) ----
+    \foreach \i/\lab in {
+        0/$a_0$, 1/$a_1$, 2/$a_2$, 3/$a_3$,
+        4/$a_4$, 5/$a_5$, 6/$a_6$, 7/$a_7$}{
+        \node[tok] (T\i) at (0.55, {-\i*0.65}) {\lab};
+      }
+    \node[font=\small\bfseries, above=4mm of T0] {AST nodes $\mathcal{A}$};
+
+    % ---- Block-range brackets (GREEN) ----
+    % Block k_1 matched to AST range [0,4)
+    \draw[|-|, thick, green!55!black]
+    (2.1,  0.27) -- (2.1, {-3*0.65-0.27})
+    node[midway, right=2pt, font=\scriptsize, green!45!black] {$\phi_K(k_1)$};
+    % Block k_2 matched to AST range [4,7)
+    \draw[|-|, thick, green!55!black]
+    (2.1, {-4*0.65+0.27}) -- (2.1, {-6*0.65-0.27})
+    node[midway, right=2pt, font=\scriptsize, green!45!black] {$\phi_K(k_2)$};
+
+    % ---- Line sub-span brackets (ORANGE, inside k_1) ----
+    \draw[|-|, orange!80!black]
+    (3.2,  0.27) -- (3.2, {-1*0.65-0.27})
+    node[midway, right=2pt, font=\scriptsize, orange!70!black] {$\phi_\ell(\ell_1)$};
+    \draw[|-|, orange!80!black]
+    (3.2, {-2*0.65+0.27}) -- (3.2, {-3*0.65-0.27})
+    node[midway, right=2pt, font=\scriptsize, orange!70!black] {$\phi_\ell(\ell_2)$};
+    % Line sub-span inside k_2
+    \draw[|-|, orange!80!black]
+    (3.2, {-4*0.65+0.27}) -- (3.2, {-5*0.65-0.27})
+    node[midway, right=2pt, font=\scriptsize, orange!70!black] {$\phi_\ell(\ell_3)$};
+
+    % ---- Node column (RIGHT) ----
+    \node[nd, fill=orange!15] (L1) at (7.5,  0.00) {Line $\ell_1$};
+    \node[nd, fill=green!15]  (K1) at (6.4, -1.10) {Block $k_1$};
+    \node[nd, fill=orange!15] (L2) at (7.5, -2.20) {Line $\ell_2$};
+    \node[nd, fill=orange!15] (L3) at (7.5, -3.30) {Line $\ell_3$};
+    \node[nd, fill=green!15]  (K2) at (6.4, -4.40) {Block $k_2$};
+    \node[font=\small\bfseries] at (6.4, 0.55) {Visual tokens};
+
+    % ---- Connectors ----
+    \draw[conn, green!55!black]  (2.1, {-1.5*0.65}) -- (K1.west);
+    \draw[conn, green!55!black]  (2.1, {-5.0*0.65}) -- (K2.west);
+    \draw[conn, orange!70!black] (3.2, {-0.5*0.65}) -- (L1.west);
+    \draw[conn, orange!70!black] (3.2, {-2.5*0.65}) -- (L2.west);
+    \draw[conn, orange!70!black] (3.2, {-4.5*0.65}) -- (L3.west);
+
+  \end{tikzpicture}
+  \caption{The multimodal alignment $(\phi_K, \phi_\ell)$ as a pair of
+    mappings.  At the \textcolor{green!60!black}{block level}, each visual
+    block is matched to an AST-node range of $\mathcal{A}$
+    (green brackets).  At the \textcolor{orange!80!black}{line level},
+    each line within a matched block is matched to a word-bounded
+    character sub-span inside that block's range (orange brackets).
+    Dotted arrows depict the assignment.  The alignment is partial: a
+    visual token with no candidate scoring above $\theta$ is left unmatched.}
+  \label{fig:alignment}
+\end{figure}
+
+\begin{remark}
+  Unlike interval-partition formulations, $\phi_K$ and $\phi_\ell^{(k)}$
+  are neither required to cover their parent span nor to assign every
+  visual token: thresholding admits rejection, and bipartite injectivity
+  prevents reuse of the same text fragment.  Each level reduces to a
+  \emph{max-weight bipartite matching} problem, solved in \cref{sec:algo}.
+\end{remark}
+
+%% ---------------------------------------------------------------
+\section{Alignment Algorithms}
+\label{sec:algo}
+%% ---------------------------------------------------------------
+
+This section operationalises the multimodal alignment problem of
+\cref{def:block-align,def:line-align} as a sequence of concrete
+algorithms.  The pipeline proceeds in three logical stages:
+\begin{itemize}
+  \item \textbf{Encode.} Lift visual tokens and Markdown fragments into a
+        shared semantic vector space via a Sentence-BERT encoder.
+  \item \textbf{Match.} At each hierarchy level, build a bipartite cost
+        matrix from pairwise cosine similarities and solve max-weight
+        assignment with the Jonker--Volgenant algorithm.
+  \item \textbf{Compose.} Stack a block-level matching over the whole
+        page with a line-level matching \emph{conditioned on} each matched
+        block's AST-node range.
+\end{itemize}
+
+\subsection{Semantic Embeddings of Visual and Textual Tokens}
+\label{sec:emb}
+
+\begin{itemize}
+  \item Both modalities are encoded with a shared Sentence-BERT model
+        \cite{reimers2019sbert}, instantiated as the distilled
+        \texttt{all-MiniLM-L6-v2} checkpoint built on the MiniLM
+        architecture \cite{wang2020minilm}.
+  \item Let $\varepsilon : \Sigma^{*} \to \mathbb{R}^{d}$ denote the
+        encoder ($d = 384$ for \texttt{all-MiniLM-L6-v2}).  It maps any
+        string to a unit-norm dense vector.
+  \item \textbf{Visual side.} For each visual token $v \in \Nodes$,
+        compute $\mathbf{e}_v = \varepsilon(\mathrm{content}(v))$ where
+        $\mathrm{content}(v)$ is the OCR transcription.
+  \item \textbf{Textual side.} For each candidate Markdown fragment
+        $y \in \Sigma^{*}$, compute $\mathbf{e}_y = \varepsilon(y)$.
+        Candidates are either (a) AST-node ranges $[i,j)$ or
+        (b) word-bounded sub-spans within a range (\cref{sec:line}).
+  \item Encoding is batched and cached: the same encoder instance is
+        reused across blocks and lines to amortise model-load cost.
+\end{itemize}
+
+\subsection{Cosine Similarity and Max-Weight Bipartite Matching}
+\label{sec:match}
+
+\paragraph{Cosine similarity matrix.}
+\begin{itemize}
+  \item Given query embeddings $A \in \mathbb{R}^{m \times d}$ (visual
+        tokens) and candidate embeddings $B \in \mathbb{R}^{n \times d}$
+        (text fragments), form the similarity matrix $S \in
+          [-1, 1]^{m \times n}$:
+        \[
+          S_{ij} \;=\; \frac{A_i \cdot B_j}{\lVert A_i\rVert\,\lVert B_j\rVert}.
+        \]
+  \item In practice $S$ is computed as $S = 1 - \mathrm{cdist}(A, B,
+          \text{cosine})$ via SciPy \cite{virtanen2020scipy}.
+\end{itemize}
+
+\paragraph{Bipartite matching.}
+\begin{itemize}
+  \item The alignment sub-problem at each level is: select a partial
+        injective function $\phi : \{0,\ldots,m-1\} \rightharpoonup
+          \{0,\ldots,n-1\}$ maximising $\sum_i S_{i,\phi(i)}$.
+  \item Equivalently, solve the \emph{linear assignment problem} on the
+        rectangular cost matrix $C = -S$; SciPy's
+        \texttt{linear\_sum\_assignment} implements the Jonker--Volgenant
+        shortest-augmenting-path algorithm \cite{jonker1987shortest,
+          crouse2016implementing}, which runs in $O(\max(m,n)^3)$ worst
+        case but is typically far faster on sparse similarity structures.
+  \item After assignment, edges $(i, \phi(i))$ with $S_{i,\phi(i)} <
+          \theta$ are pruned --- this is the rejection regime of
+        \cref{def:block-align}.
+\end{itemize}
+
+\begin{algorithm}[h]
+  \caption{Max-weight bipartite matching with thresholding}
+  \label{alg:match}
+  \begin{algorithmic}[1]
+    \Require query embeddings $A \in \mathbb{R}^{m\times d}$,
+    candidate embeddings $B \in \mathbb{R}^{n\times d}$,
+    threshold $\theta$
+    \Ensure list of triples $(i, j, s)$ with $s \ge \theta$
+    \State $S \gets 1 - \mathrm{cdist}(A, B, \text{cosine})$
+    \Comment{pairwise cosine similarity, $S \in \mathbb{R}^{m\times n}$}
+    \State $(I, J) \gets \textsc{LinearSumAssignment}(-S)$
+    \Comment{Jonker--Volgenant, maximise total similarity}
+    \State $M \gets \emptyset$
+    \For{$(i, j) \in \mathrm{zip}(I, J)$}
+    \If{$S_{i,j} \ge \theta$}
+    \State $M \gets M \cup \{(i,\, j,\, S_{i,j})\}$
+    \EndIf
+    \EndFor
+    \State \Return $M$
+  \end{algorithmic}
+\end{algorithm}
+
+\subsection{Block-Level Alignment over AST-Node Ranges}
+\label{sec:block}
+
+\paragraph{Candidate generation.}
+\begin{itemize}
+  \item Let $K = \{k_1, \ldots, k_m\} \subseteq \Nodes$ be the block
+        visual tokens of page $\LT$.
+  \item Enumerate \emph{every} contiguous AST-node range
+        $[i, j) \in \Spans_{\mathcal{A}}$ with $0 \le i < j \le N$:
+        this yields $\binom{N+1}{2} = O(N^2)$ candidates.
+  \item For each range, materialise the induced character span
+        $\mu[s_i : e_{j-1}]$ and record $(i, j)$ so the assignment can be
+        translated back to \texttt{BlockAlignmentTarget} objects.
+\end{itemize}
+
+\paragraph{Matching.}
+\begin{itemize}
+  \item Encode all $m$ block transcriptions into $A \in \mathbb{R}^{m
+            \times d}$ and all $O(N^2)$ candidate strings into $B$.
+  \item Invoke \cref{alg:match} with threshold $\theta_K$.
+  \item Each returned triple $(i, j, s)$ assigns block $K_i$ to AST range
+        $\mathrm{rng}[j]$ with score $s$.
+\end{itemize}
+
+\paragraph{Complexity.}
+\begin{itemize}
+  \item Encoding: $O((m + N^2)\,C_\varepsilon)$ where $C_\varepsilon$ is
+        the cost of a single forward pass.
+  \item Similarity matrix: $O(m N^2 d)$.
+  \item Assignment: $O(\max(m, N^2)^3)$ worst case; $N^2$ dominates in
+        practice since $N \gg m$.
+  \item This $O(N^2)$ candidate blow-up is the principal scalability
+        concern at the block level.
+\end{itemize}
+
+\paragraph{Granularity as the mitigating design choice.}
+\begin{itemize}
+  \item The constant $N$ here is the number of \emph{AST leaf nodes}
+        (paragraphs, headings, list items, code blocks), not tokens or
+        characters --- a deliberate choice in
+        \texttt{get\_doc\_range\_embeddings} that anchors the nested
+        enumeration at the coarsest semantically meaningful granularity.
+  \item Typical pages yield $N \approx 10$--$50$, so $N^2 \approx
+          10^2$--$10^3$ candidates --- comfortably within a single batched
+        SBERT call and a sub-second assignment.
+  \item An alternative tokenisation at the \emph{word} level would push
+        $N$ into the hundreds or low thousands, inflating $N^2$ by three
+        to six orders of magnitude and making block matching
+        intractable.
+  \item Granularity, however, only lowers the base of $N$; the asymptotic
+        $O(N^2)$ candidate count and the derived $O(N^6)$ worst-case
+        assignment cost remain.  Dense technical pages with many short
+        AST leaves (fragmented equations, long itemised lists, numerous
+        captions) can therefore still stress the block stage, motivating
+        the hierarchical composition of \cref{sec:compose}.
+\end{itemize}
+
+\subsection{Line-Level Alignment over Word-Bounded Sub-Spans}
+\label{sec:line}
+
+\paragraph{Conditioning on a matched block.}
+\begin{itemize}
+  \item Line-level matching is performed \emph{per block}: for each
+        $k \in \mathrm{dom}(\phi_K)$, restrict attention to the AST-node
+        range $[i^{*}, j^{*}) = \phi_K(k)$ and the set $L_k$ of line
+        children of $k$ in $\LT$.
+  \item This locality prunes the candidate space dramatically compared
+        to a page-global line matching.
+\end{itemize}
+
+\paragraph{Length-filtered word-bounded candidates.}
+\begin{itemize}
+  \item Collect all word spans in the block's AST range:
+        $W_k = \bigcup_{p = i^{*}}^{j^{*}-1} \omega(a_p)$, annotated with
+        the AST-node index they belong to.
+  \item Let $\ell_{\min} = \min_{\ell \in L_k}|\mathrm{content}(\ell)|$
+        and $\ell_{\max} = \max_{\ell \in L_k}|\mathrm{content}(\ell)|$.
+  \item Enumerate every pair $(p, q)$ with $p < q \le |W_k|$ giving a
+        candidate character span $[c_s, c_e)$; \emph{keep} only those
+        with $\ell_{\min}/2 \le c_e - c_s \le 2\ell_{\max}$.
+  \item The $2\times$ expansion / $\tfrac{1}{2}\times$ contraction
+        tolerates OCR-introduced length noise while still pruning the
+        $O(|W_k|^2)$ candidate set to a practical size.
+\end{itemize}
+
+\paragraph{Matching.}
+\begin{itemize}
+  \item Embed line transcriptions and filtered candidate strings; invoke
+        \cref{alg:match} with threshold $\theta_\ell$.
+  \item Translate each triple $(i, j, s)$ into a
+        \texttt{CharAlignmentTarget} carrying
+        $(\text{ast\_start}, \text{char\_start}, \text{ast\_end},
+          \text{char\_end}, s)$.
+\end{itemize}
+
+\subsection{Hierarchical Composition and Thresholding}
+\label{sec:compose}
+
+\paragraph{Two-stage composition.}
+\begin{itemize}
+  \item The full pipeline composes \cref{sec:block} with a fold over
+        matched blocks, each running \cref{sec:line} independently
+        (\cref{alg:align-tree}).
+  \item The \texttt{blocks\_only} mode skips the line stage --- useful
+        when a coarse alignment suffices or for ablation studies.
+\end{itemize}
+
+\begin{algorithm}[h]
+  \caption{Hierarchical multimodal alignment (\textsc{AlignTree})}
+  \label{alg:align-tree}
+  \begin{algorithmic}[1]
+    \Require Layout tree $\LT$, parsed Markdown $\MD$, thresholds
+    $\theta_K,\theta_\ell$
+    \Ensure Pair $(\phi_K,\, \{\phi_\ell^{(k)}\}_k)$
+    \State $K \gets$ block-level nodes of $\LT$
+    \State $\phi_K \gets \textsc{AlignBlocks}(K, \mathcal{A}, \theta_K)$
+    \Comment{\cref{sec:block} + \cref{alg:match}}
+    \State $\Phi_\ell \gets \emptyset$
+    \ForAll{$k \in \mathrm{dom}(\phi_K)$}
+    \State $[i^{*}, j^{*}) \gets \phi_K(k)$
+    \State $L_k \gets$ line children of $k$ in $\LT$
+    \State $\phi_\ell^{(k)} \gets \textsc{AlignLines}(L_k,\, \mathcal{A}[i^{*}{:}j^{*}],\, \theta_\ell)$
+    \Comment{\cref{sec:line} + \cref{alg:match}}
+    \State $\Phi_\ell \gets \Phi_\ell \cup \{(k, \phi_\ell^{(k)})\}$
+    \EndFor
+    \State \Return $(\phi_K,\, \Phi_\ell)$
+  \end{algorithmic}
+\end{algorithm}
+
+\paragraph{Role of the threshold $\theta$.}
+\begin{itemize}
+  \item $\theta$ is the sole knob controlling the precision/recall
+        trade-off: low $\theta$ yields many matches (high recall, risk of
+        spurious pairs); high $\theta$ yields only confident matches
+        (high precision, risk of unaligned visual tokens).
+  \item Defaults in the implementation: $\theta_K = \theta_\ell = 0.2$.
+  \item The threshold operates \emph{after} the global optimum has been
+        selected by Jonker--Volgenant, so it only suppresses weak edges
+        and never swaps a strong edge for a weaker one.
+\end{itemize}
+
+\paragraph{Why hierarchical matters.}
+\begin{itemize}
+  \item A flat, page-global line-to-word matching would require
+        $O(N_{\text{words}}^2)$ candidate sub-spans, which is
+        combinatorially prohibitive for full pages.
+  \item Block-level conditioning localises the search to one block at a
+        time; combined with length filtering, the line stage becomes
+        linear in the number of pages processed.
+  \item Additionally, conditioning enforces block-scoped containment:
+        no line can be matched to text outside its parent block's
+        AST range, mirroring the containment constraint of the Layout
+        Tree.
+\end{itemize}
+
+\begin{figure}[h]
+  \centering
+  \vspace{0.4em}
+  \begin{tikzpicture}[
+      box/.style={draw, rounded corners, font=\small, inner sep=5pt,
+          minimum width=4.2cm, minimum height=0.9cm, align=center},
+      input/.style={box, fill=gray!10},
+      stage/.style={box, fill=blue!10},
+      match/.style={box, fill=green!12},
+      thr/.style={box, fill=orange!15},
+      output/.style={box, fill=green!20},
+      arr/.style={->, >=Stealth, thick},
+      node distance=0.7cm and 0.8cm,
+      every node/.append style={outer sep=0pt},
+    ]
+    % Row 1: inputs (side-by-side)
+    \node[input] (lt) {Layout tree $\LT$\\\scriptsize blocks $K$, lines $\{L_k\}$};
+    \node[input, right=of lt] (md) {Parsed Markdown $\MD$\\\scriptsize AST $\mathcal{A}$, spans $\omega$};
+
+    % Row 2: encoders
+    \node[stage, below=of lt] (encv) {$\varepsilon$ encode visual};
+    \node[stage, below=of md] (enct) {$\varepsilon$ encode text};
+
+    % Row 3: block matcher (spans both columns)
+    \node[match, below=of encv, xshift=2.25cm, minimum width=9cm] (bm)
+    {\textsc{AlignBlocks} --- Jonker--Volgenant $+\,\theta_K$};
+
+    % Row 4: block alignment output
+    \node[thr, below=of bm] (phik)
+    {$\phi_K : K \rightharpoonup \Spans_{\mathcal{A}}$};
+
+    % Row 5: line matcher (per block)
+    \node[match, below=of phik, minimum width=9cm] (lm)
+    {\textsc{AlignLines}$^{(k)}$ for each $k\in\mathrm{dom}(\phi_K)$ --- JV $+\,\theta_\ell$};
+
+    % Row 6: line alignments
+    \node[thr, below=of lm] (phil) {$\{\phi_\ell^{(k)}\}_{k\in\mathrm{dom}(\phi_K)}$};
+
+    % Row 7: output
+    \node[output, below=of phil] (out) {\textsc{DocAlignment} $= (\phi_K,\, \{\phi_\ell^{(k)}\})$};
+
+    % Arrows
+    \draw[arr] (lt) -- (encv);
+    \draw[arr] (md) -- (enct);
+    \draw[arr] (encv) -- (bm.north -| encv);
+    \draw[arr] (enct) -- (bm.north -| enct);
+    \draw[arr] (bm) -- (phik);
+    \draw[arr] (phik) -- (lm);
+    % text-candidate embeddings reused for line matching
+    \draw[arr, dashed, gray!70] (enct.east) -- ++(0.6,0)
+    |- (lm.east) node[pos=0.25, right, font=\scriptsize, gray!80!black]
+      {candidate embeds};
+    \draw[arr] (lm) -- (phil);
+    \draw[arr] (phil) -- (out);
+    % phi_K also flows to DocAlignment (side path, routed clear of AlignLines)
+    \draw[arr] (phik.west) -| ([xshift=-0.9cm]lm.west) |- (out.west);
+
+  \end{tikzpicture}
+  \caption{Pipeline view of hierarchical alignment.  Visual and textual
+    content are independently encoded by $\varepsilon$ (blue).
+    \textsc{AlignBlocks} (green) produces the block-level partial
+    mapping $\phi_K$, which conditions \textsc{AlignLines} on each
+    matched block's AST-node range.  Both matchers share
+    \cref{alg:match} --- Jonker--Volgenant assignment followed by
+    $\theta$-thresholding (orange).  The final \textsc{DocAlignment}
+    bundles $\phi_K$ and the per-block line alignments.}
+  \label{fig:pipeline}
+  \vspace{0.2em}
+\end{figure}
+
+%% ---------------------------------------------------------------
+\section{System Implementation}
+\label{sec:impl}
+%% ---------------------------------------------------------------
+
+The algorithms of \cref{sec:algo} are realised as a three-package Python
+and TypeScript system: \texttt{ppx-ocr} produces per-page visual tokens
+and Markdown from a raster PDF, \texttt{ppx-align} builds the layout tree,
+runs embedding-based alignment, and exposes the result over HTTP, and
+\texttt{ppx-svelte} is an interactive browser client that consumes the
+HTTP API to display synchronised views of the page image and the
+Markdown.  \cref{fig:sys-arch} gives the top-level picture.
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[
+      box/.style={draw, rounded corners, font=\small, inner sep=5pt,
+          minimum width=3.6cm, minimum height=0.9cm, align=center},
+      pkg/.style={box, fill=blue!10},
+      svc/.style={box, fill=green!12},
+      store/.style={box, fill=orange!12},
+      client/.style={box, fill=purple!10},
+      arr/.style={->, >=Stealth, thick},
+      node distance=0.7cm and 1.0cm,
+    ]
+    \node[box, fill=gray!15] (pdf) {PDF};
+    \node[pkg, right=of pdf] (ocr) {\texttt{ppx-ocr}\\\scriptsize PaddleOCR + PPStructureV3};
+    \node[store, right=of ocr] (fs) {per-page folder\\\scriptsize image, MD, raw OCR};
+    \node[pkg, below=of fs] (build) {\texttt{ppx-align build}\\\scriptsize layout tree + alignment};
+    \node[store, below=of build] (aligned) {\texttt{alignment.json}\\\texttt{tree.parquet}};
+    \node[svc, left=of aligned] (serve) {\texttt{ppx-align serve}\\\scriptsize FastAPI (uvicorn)};
+    \node[client, left=of serve] (svelte) {\texttt{ppx-svelte}\\\scriptsize SvelteKit viewer};
+
+    \draw[arr] (pdf) -- (ocr);
+    \draw[arr] (ocr) -- (fs);
+    \draw[arr] (fs) -- (build);
+    \draw[arr] (build) -- (aligned);
+    \draw[arr] (aligned) -- (serve);
+    \draw[arr] (serve) -- node[above, font=\scriptsize] {\texttt{/api/ppx/\ldots}} (svelte);
+
+  \end{tikzpicture}
+  \caption{System architecture.  Solid arrows denote data flow; orange
+    nodes are on-disk artefacts.  \texttt{ppx-ocr} runs the
+    PaddleOCR / PPStructure\,V3 pipeline and writes one folder per page.
+    \texttt{ppx-align build} ingests those folders, constructs the
+    Layout Tree and Markdown AST, and persists \texttt{alignment.json}
+    and \texttt{tree.parquet}.  \texttt{ppx-align serve} is a FastAPI
+    backend that streams images, Markdown, tree rows, and alignments
+    over JSON to the SvelteKit client.}
+  \label{fig:sys-arch}
+\end{figure}
+
+\subsection{PaddleOCR and PaddlePaddle Integration}
+\label{sec:paddle}
+
+PaddleOCR is a Python OCR toolkit built on the PaddlePaddle deep-learning
+framework \cite{PaddleOCR30}.  Our pipeline consumes two of its
+high-level APIs at complementary granularities.
+
+\paragraph{Two cooperating models.}
+\begin{itemize}
+  \item \textbf{\texttt{PaddleOCR}} \cite{PaddleOCRv3} is the
+        text-recognition entry point: given a page image it returns
+        line- and word-level bounding boxes with OCR transcriptions.
+        We disable document unwarping (\texttt{use\_doc\_unwarping=False})
+        because page rectification has already been handled by the PDF
+        renderer.
+  \item \textbf{\texttt{PPStructureV3}} \cite{PPDocLayout} is the
+        document-structure analyser: it produces region- and
+        block-level bounding boxes labelled with semantic categories
+        (\texttt{title}, \texttt{paragraph}, \texttt{table},
+        \texttt{figure}, \texttt{formula}, \ldots) and returns a
+        Markdown rendering of the page.
+  \item The two models share the PaddlePaddle runtime; both are
+        instantiated once per process and cached via
+        \texttt{functools.cache} to amortise GPU model-load cost.
+\end{itemize}
+
+\paragraph{Layer merging.}
+\begin{itemize}
+  \item \texttt{ppx-ocr} separately constructs two intermediate layer
+        bundles --- \texttt{VisualTokenLayers} (lines and words from
+        \texttt{PaddleOCR}) and \texttt{LayoutLayers} (regions, blocks,
+        formulas from \texttt{PPStructureV3}) --- then merges them into
+        a single \texttt{VisualLayers} dataclass consumed downstream.
+  \item This split isolates the two Paddle models behind well-typed
+        adapters, so a future backend change (e.g., to PaddleOCR-VL
+        \cite{paddleocrvl2025}) touches one adapter only.
+\end{itemize}
+
+\begin{lstlisting}[caption={Caching PaddlePaddle model instances
+      (\texttt{ppx-ocr/core/ocr.py}).},
+    label={lst:paddle-models}]
+from functools import cache
+from paddleocr import PaddleOCR, PPStructureV3
+
+@cache
+def get_ocr_model():
+    return PaddleOCR(use_doc_unwarping=False)
+
+@cache
+def get_structure_model():
+    return PPStructureV3()
+\end{lstlisting}
+
+\subsection{OCR and Layout Analysis Pipeline}
+\label{sec:pipeline}
+
+The \texttt{ppx-ocr} command-line driver \cite{PaddleOCR30} converts a
+PDF into a directory structure keyed by page index.
+
+\paragraph{Per-page artefacts.}
+For each page $p$ the pipeline writes:
+\begin{itemize}
+  \item \texttt{np\_page.png} --- the rasterised RGB page image;
+  \item \texttt{markdown/markdown.md} --- the Markdown rendering from
+        \texttt{PPStructureV3};
+  \item \texttt{layout.parquet} and \texttt{blocks.parquet} --- region-
+        and block-level bounding boxes with PP-DocLayout labels
+        \cite{PPDocLayout};
+  \item \texttt{line\_tokens.parquet}, \texttt{word\_tokens.parquet}
+        --- PaddleOCR detections at finer granularities;
+  \item figure crops, table HTML, and LaTeX-rendered formulas when
+        present.
+\end{itemize}
+
+\paragraph{Idempotence and re-processing.}
+\begin{itemize}
+  \item Page directories are atomic units: the driver writes into a
+        per-page subfolder and skips pages whose folder already exists,
+        unless \texttt{--overwrite} is supplied.
+  \item This makes the ingest stage safe to resume after a crash and
+        cheap to re-run incrementally as new pages are added.
+\end{itemize}
+
+\subsection{Type-Safe Data Representations}
+\label{sec:types}
+
+A recurring source of bugs in document-analysis pipelines is silent
+schema drift between stages.  We address this with two layers of
+validation.
+
+\paragraph{Pandera DataFrame schemas.}
+\begin{itemize}
+  \item Tabular artefacts (bounding-box tables, word tokens, layout
+        rows) are declared as subclasses of
+        \texttt{pandera.DataFrameModel} --- \texttt{LineTokenSchema},
+        \texttt{WordTokenSchema}, \texttt{LayoutSchema},
+        \texttt{BlockSchema}, \texttt{LayoutTreeSchema}, etc.
+  \item Columns, dtypes, and nullability are checked at every
+        boundary, so a type mismatch between \texttt{ppx-ocr} output
+        and \texttt{ppx-align} input fails loudly rather than silently
+        propagating.
+\end{itemize}
+
+\paragraph{Pydantic value models.}
+\begin{itemize}
+  \item Non-tabular values --- \texttt{ParsedDocument},
+        \texttt{BlockAlignmentTarget}, \texttt{CharAlignmentTarget},
+        \texttt{DocAlignment} --- are Pydantic \texttt{BaseModel}s.
+  \item \texttt{DocAlignment} serialises directly to the JSON returned
+        by the HTTP API (\cref{sec:clientserver}), closing the loop
+        from algorithmic output to wire format with no ad-hoc
+        marshalling code.
+\end{itemize}
+
+\begin{lstlisting}[caption={Pydantic models for alignment targets
+      (\texttt{ppx-align/core/types.py}).},
+    label={lst:align-types}]
+class BlockAlignmentTarget(BaseModel):
+    ast_start: int
+    ast_end: int
+    score: float
+
+class CharAlignmentTarget(BaseModel):
+    ast_index_start: int
+    char_start: int
+    ast_index_end: int
+    char_end: int
+    score: float
+
+class DocAlignment(BaseModel):
+    block_alignments: dict[str, BlockAlignmentTarget]
+    line_alignments:  dict[str, CharAlignmentTarget]
+\end{lstlisting}
+
+\subsection{Composable Pipeline Design}
+\label{sec:compose-sys}
+
+\paragraph{Stage functions over typed artefacts.}
+\begin{itemize}
+  \item Every stage of the pipeline --- OCR, structure analysis,
+        layout-tree construction, Markdown parsing, block alignment,
+        line alignment --- is a pure function from one validated
+        artefact to another.  The types of \cref{sec:types} are the
+        pipeline's glue.
+  \item Representative signatures:
+        \begin{itemize}
+          \item \texttt{build\_parsed\_doc(MarkdownDocument) -> ParsedDocument}
+          \item \texttt{align\_blocks(tree, doc, threshold) -> dict[str, BlockAlignmentTarget]}
+          \item \texttt{align\_tree(tree, doc, block\_threshold, line\_threshold, blocks\_only) -> DocAlignment}
+        \end{itemize}
+  \item No stage mutates its inputs; each returns a new artefact that
+        can be cached, persisted, or fed to multiple downstream stages.
+\end{itemize}
+
+\paragraph{Markdown AST construction.}
+\begin{itemize}
+  \item \texttt{build\_parsed\_doc} (in \texttt{ppx-align/core/md.py})
+        parses the OCR-generated Markdown with \texttt{markdown-it-py}
+        in GFM-like mode, extracts the top-level children as
+        $\mathcal{A}$, and derives character spans $\sigma$ from the
+        \texttt{node.map} line indices combined with a
+        \texttt{splitlines(keepends=True)} offset table.
+  \item Word spans $\omega$ are produced by NLTK's
+        \texttt{TreebankWordTokenizer.span\_tokenize} applied to each
+        AST node's content.
+  \item A single helper \texttt{get\_content(doc, **kwargs)} dispatches
+        over \texttt{ast\_range}, \texttt{ast\_index},
+        \texttt{block\_alignment\_target}, or
+        \texttt{char\_alignment\_target} to recover the Markdown slice
+        backing any alignment, giving viewers and debuggers a uniform
+        retrieval API.
+\end{itemize}
+
+\paragraph{CLI orchestration.}
+\begin{itemize}
+  \item \texttt{ppx-align build} threads stage functions in dependency
+        order and writes \texttt{tree.parquet} and
+        \texttt{alignment.json} into each page directory.
+  \item Flags \texttt{--page} and \texttt{--blocks-only} expose partial
+        re-execution paths, mirroring the stage decomposition at the
+        command line.
+\end{itemize}
+
+\subsection{Client/Server Architecture for AI-Assisted Reading}
+\label{sec:clientserver}
+
+The alignment artefacts are only useful if a human (or an LLM) can
+explore them.  To that end, \texttt{ppx-align serve} exposes a thin
+FastAPI facade over the on-disk output directory, and \texttt{ppx-svelte}
+consumes it in the browser.
+
+\paragraph{HTTP API surface.}
+\begin{itemize}
+  \item \texttt{GET /api/ppx} --- list documents in the output root.
+  \item \texttt{GET /api/ppx/\{doc\}/} --- document metadata (page count).
+  \item \texttt{GET /api/ppx/\{doc\}/\{p\}/image} --- page PNG.
+  \item \texttt{GET /api/ppx/\{doc\}/\{p\}/thumbnail} --- on-the-fly
+        PIL thumbnail.
+  \item \texttt{GET /api/ppx/\{doc\}/\{p\}/markdown/index.md} --- raw Markdown.
+  \item \texttt{GET /api/ppx/\{doc\}/\{p\}/tree} --- layout tree rows
+        (JSON projection of \texttt{tree.parquet}).
+  \item \texttt{GET /api/ppx/\{doc\}/\{p\}/alignment} --- the full
+        \texttt{DocAlignment} JSON.
+  \item A \texttt{--slow} flag routes all responses through an async
+        middleware that injects 0.5--2\,s of artificial latency,
+        exercising loading states in the client.
+\end{itemize}
+
+\paragraph{Browser client.}
+\begin{itemize}
+  \item \texttt{ppx-svelte} is a SvelteKit / Vite application.  Its
+        Vite dev server proxies \texttt{/api/ppx/\ldots} to the FastAPI
+        backend, so client and server can be iterated independently.
+  \item The viewer renders a two-panel layout (page image left,
+        Markdown right) and fetches each document's tree and alignment
+        lazily on page change.
+  \item Hovering a visual-token overlay highlights the aligned
+        Markdown span and scrolls the right panel to it; toggling
+        \emph{Raw} exposes the Markdown source for reverse selection,
+        in which case the selected character range is displayed as an
+        \texttt{ast\_index:char\_offset} span.
+\end{itemize}
+
+\paragraph{Why separate \texttt{build} and \texttt{serve}.}
+\begin{itemize}
+  \item Alignment is GPU-heavy and batch-oriented; serving is I/O
+        bound and latency-sensitive.  Splitting them lets the heavy
+        stage run once per corpus update, while the server runs as a
+        lightweight sidecar that only reads validated artefacts.
+  \item The server deliberately has no model dependencies (no
+        PaddlePaddle, no PyTorch): this keeps its container footprint
+        small and lets it be deployed behind an authenticating reverse
+        proxy without exposing the model runtime.
+\end{itemize}
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[
+      box/.style={draw, rounded corners, font=\small, inner sep=5pt,
+          minimum width=3.3cm, minimum height=0.9cm, align=center},
+      svr/.style={box, fill=green!12},
+      cli/.style={box, fill=purple!10},
+      disk/.style={box, fill=orange!12},
+      arr/.style={->, >=Stealth, thick},
+      node distance=0.9cm and 1.0cm,
+    ]
+    \node[disk, align=left] (out) {\texttt{output/\{doc\}/\{p\}/}\\[-1pt]
+      \scriptsize\texttt{np\_page.png}\\[-2pt]
+      \scriptsize\texttt{markdown.md}\\[-2pt]
+      \scriptsize\texttt{tree.parquet}\\[-2pt]
+      \scriptsize\texttt{alignment.json}};
+    \node[svr, right=of out] (api) {FastAPI app\\\scriptsize
+      \texttt{ppx-align serve}};
+    \node[cli, right=of api] (vite) {Vite dev proxy\\\scriptsize port 5173};
+    \node[cli, below=of vite] (ui) {SvelteKit viewer\\\scriptsize
+      image + Markdown panels};
+
+    \draw[arr] (out) -- node[above, font=\scriptsize] {reads} (api);
+    \draw[arr] (api) -- node[above, font=\scriptsize]
+    {\texttt{/api/ppx/\ldots}} (vite);
+    \draw[arr] (vite) -- (ui);
+    \draw[arr, dashed, gray!70] (ui.west) -- ++(-0.6,0) |-
+    node[pos=0.25, right, font=\scriptsize, gray!80!black]
+    {hover / select} (api.south);
+  \end{tikzpicture}
+  \caption{Client/server topology.  \texttt{ppx-align serve} reads
+    per-page artefacts from disk and exposes them as JSON and static
+    resources.  The SvelteKit viewer reaches the backend through the
+    Vite dev proxy in development and a reverse proxy in production.
+    The dashed arrow denotes user interactions (hover highlights,
+    reverse text selection) that issue additional API requests.}
+  \label{fig:clientserver}
+\end{figure}
+
+%% ---------------------------------------------------------------
+\section{Evaluation Methodology}
+\label{sec:failure}
+%% ---------------------------------------------------------------
+
+Classical quantitative evaluation (precision, recall, F1 against ground
+truth) would require a token-level alignment benchmark that does not
+currently exist --- a point we argue in detail in \cref{sec:unattainable}.
+In its absence, we describe the inspection methodology we adopted and
+defer a systematic empirical catalogue of failure modes to future work.
+
+\subsection{Methodology: Inspection, Not Metrics}
+\label{sec:insp}
+
+\begin{itemize}
+  \item The \texttt{ppx-svelte} viewer (\cref{sec:clientserver}) is the
+        primary diagnostic instrument: pairwise highlighting of visual
+        tokens and Markdown spans under cursor hover makes mis-alignment
+        immediately visible.
+  \item Sweeping hover across every block and line of a page surfaces
+        individual wrong alignments on a per-case basis, but yields
+        neither a population-level error rate nor an honest failure
+        taxonomy.
+  \item Findings are \emph{qualitative} by construction: without ground
+        truth we can claim that a given alignment is obviously wrong,
+        but we cannot claim that an un-flagged alignment is correct.
+        A principled failure-mode analysis therefore depends on the
+        benchmark whose non-existence is the subject of
+        \cref{sec:unattainable}.
+\end{itemize}
+
+%% ---------------------------------------------------------------
+\section{Why Evaluation Is Unattainable}
+\label{sec:unattainable}
+%% ---------------------------------------------------------------
+
+The inspection methodology of \cref{sec:insp} is unsatisfying for a
+reason that generalises: any empirical characterisation of the pipeline
+presupposes a reference against which its output can be adjudicated.
+We argue here that no such reference exists.  The paper's most durable
+claim is accordingly \emph{epistemological}: there is no existing
+dataset or proxy method that can adjudicate token-level alignment
+correctness in visual OCR pipelines.  We enumerate the candidate
+approaches and argue why each fails.
+
+\subsection{Candidate 1: PDFMiner + XML (Born-Digital Pipelines)}
+\begin{itemize}
+  \item \textbf{Approach.} Extract authoritative text and character
+        boxes from born-digital PDF structure (PDFMiner's
+        \texttt{LTChar}/\texttt{LTTextLine}) and align to companion
+        structural XML (NLM JATS, TEI).
+  \item \textbf{Why it fails as ground truth.} This procedure is itself
+        a \emph{second} alignment pipeline with its own failure modes
+        (coordinate-system mismatch, reading-order divergence on
+        multi-column pages, non-text content masking, re-detection
+        under masking).  Evaluating our pipeline against it measures
+        agreement between two alignment systems, not correctness.
+  \item \textbf{Additionally.} PDFMiner operates on extracted character
+        streams, not rasterised images, so it sidesteps OCR noise ---
+        precisely the failure regime our pipeline is exposed to.  Any
+        benchmark built on PDFMiner is therefore blind to OCR-induced
+        failure modes by construction.
+\end{itemize}
+
+\subsection{Candidate 2: Human Bounding-Box Annotation}
+\begin{itemize}
+  \item \textbf{Approach.} Coordinate a large human-annotator effort
+        to draw bounding boxes and label them with their aligned
+        Markdown spans.
+  \item \textbf{Precedent.} DocLayNet annotated 80{,}000 pages with 32
+        annotators over 3 months --- and only at the \emph{bounding-box}
+        and \emph{label} granularity, not at the token-level alignment
+        granularity we need.
+  \item \textbf{Why it fails at the required granularity.} Token-level
+        alignment requires, for each visual token, an annotator to
+        indicate the exact character span of its transcription in the
+        Markdown.  The inter-annotator disagreement on span endpoints
+        (word-bounded vs.\ whitespace-bounded, inclusion of punctuation,
+        hyphenation handling) is itself a measurement problem, and the
+        combinatorial annotation cost scales multiplicatively with the
+        four hierarchy levels.
+  \item No existing annotation effort targets this specification.
+        Building one is itself a multi-year research programme.
+\end{itemize}
+
+\subsection{Candidate 3: High-Accuracy OCR Proxy}
+\begin{itemize}
+  \item \textbf{Approach.} Use a state-of-the-art multimodal model
+        (Mistral-OCR, Gemini, GPT-4V) as a reference and compute
+        agreement against our pipeline.
+  \item \textbf{Why it fails as ground truth.} A proxy measures
+        inter-system agreement at best; two systems can agree and both
+        be wrong in correlated ways (shared training-data biases,
+        similar failure modes on tables/equations).
+  \item \textbf{Additionally.} Proxies typically output Markdown but
+        not a token-level alignment to the page image.  Using them
+        would require \emph{aligning their Markdown to our visual
+        tokens} --- reintroducing the very problem we are trying to
+        benchmark.
+\end{itemize}
+
+\subsection{What a Valid Benchmark Would Require}
+\begin{itemize}
+  \item \textbf{Independent source of token-to-span truth.}  For every
+        visual token, a character-exact Markdown span established
+        without recourse to any alignment algorithm.
+  \item \textbf{Inter-annotator adjudication} at span-endpoint
+        resolution, with explicit conventions for hyphenation,
+        whitespace, punctuation, and inline formatting.
+  \item \textbf{Coverage of OCR-induced failure regimes} (noisy
+        scanned documents, historical typefaces, multi-script pages)
+        --- a corpus of born-digital PDFs alone is insufficient.
+  \item \textbf{Four-level annotation} to match the Layout Tree
+        (region, block, line, word) with consistent containment.
+  \item \textbf{Scale sufficient for statistical power} on long-tail
+        failure modes (multi-column layouts, tables, equations,
+        hyphenation, OCR noise regimes).
+  \item The resulting effort is comparable in magnitude to DocLayNet
+        but an order of magnitude finer-grained.  No such corpus
+        exists today, and we do not construct one; we instead
+        document that its absence is itself a result.
+\end{itemize}
+
+%% ---------------------------------------------------------------
+\section{Conclusion}
+\label{sec:conclusion}
+%% ---------------------------------------------------------------
+
+\subsection{Summary of Contributions}
+\begin{itemize}
+  \item \textbf{Formal model.} A set-theoretic formulation of
+        multimodal document alignment (\cref{sec:formal}) that cleanly
+        separates the four-level Layout Tree from the Markdown AST and
+        casts alignment as a pair of partial injective functions
+        scored by semantic similarity.
+  \item \textbf{Composable pipeline.} An embedding-based, hierarchical
+        implementation (\texttt{ppx-ocr}, \texttt{ppx-align},
+        \texttt{ppx-svelte}) with type-safe intermediate
+        representations, an HTTP API, and an interactive viewer
+        designed for case-by-case alignment inspection.
+  \item \textbf{Epistemological finding.} Token-level alignment
+        correctness in visual-OCR document pipelines is not
+        adjudicable by any existing dataset or proxy method.  This is
+        a structural constraint on the field, not a temporary gap, and
+        a proper benchmark would itself constitute a distinct research
+        effort.
+\end{itemize}
+
+\subsection{Limitations}
+\begin{itemize}
+  \item \textbf{No quantitative correctness claim.} We do not, and
+        cannot, claim that the alignments produced by \cref{sec:algo}
+        are correct in aggregate.  Our only empirical instrument is
+        case-by-case inspection via \texttt{ppx-svelte}; establishing
+        population-level error bounds requires the benchmark whose
+        non-existence is argued in \cref{sec:unattainable}.
+  \item \textbf{No empirical failure-mode catalogue.} A principled
+        taxonomy of where and why the pipeline breaks depends on the
+        same missing ground truth; we leave it to future work once
+        such a benchmark exists.
+  \item \textbf{Domain scope.} The pipeline is tuned to English
+        academic PDFs with Latin-script text.  Behaviour on
+        multi-script documents, handwritten material, or historical
+        typography is untested.
+  \item \textbf{Dependence on PaddleOCR / PPStructure\,V3.} The
+        upstream layout analyser's errors propagate into every
+        downstream stage; a bad \texttt{block} segmentation cannot be
+        recovered by any alignment algorithm operating on its output.
+\end{itemize}
+
+\subsection{Future Work}
+\begin{itemize}
+  \item \textbf{Building the missing benchmark.} Designing the
+        annotation protocol, tooling, and inter-annotator adjudication
+        for a four-level token-to-span corpus --- the long-term direction
+        implied by \cref{sec:unattainable}.
+  \item \textbf{Weak-supervision proxies.} In lieu of a full benchmark,
+        leverage pipeline-internal signals (threshold abstentions,
+        score percentiles, injectivity violations in candidate
+        enumeration) as cheap calibration targets, and study how well
+        they correlate with human-adjudicated errors on held-out
+        inspection sets.
+  \item \textbf{Domain-adapted embeddings.} Replace
+        \texttt{all-MiniLM-L6-v2} with an encoder fine-tuned on
+        Markdown / scientific text pairs to improve behaviour on
+        equations and tables, where general-purpose sentence
+        embeddings are least informative.
+  \item \textbf{Structural repair passes.} Post-process the
+        \texttt{DocAlignment} to enforce soft containment (no child
+        span exceeds its parent's) and soft monotonicity (siblings
+        cross only when scores justify it).
+  \item \textbf{Larger-context matching.} Replace sentence-level
+        embeddings with cross-attention between visual-token content
+        and surrounding AST context, so that disambiguation across
+        near-duplicate blocks exploits the layout-tree neighbourhood.
+\end{itemize}
 
 % References
 \bibliographystyle{unsrtnat}

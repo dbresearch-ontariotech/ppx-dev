@@ -27,6 +27,7 @@ Refer to @../src/ppx-ocr and @../src/ppx-align for the python implementation.  I
 - @../ppx-align/src/ppx-align/core/layout.py is the layout tree and related algorithms.
 - @../ppx-align/src/ppx-align/core/algo.py is the collection of general purpose algorithms used for a previous experiment.
 - @../ppx-align/src/ppx-align/core/align.py is the new alignment algorithms used for embedding alignment.
+- @../ppx-align/src/ppx-align/core/md.py is the collection of method to build the AST and markdown content.
 
 ### References
 
@@ -62,7 +63,7 @@ Formulate the problem of multimodal alignment.
 
 Use tikz to draw illustrative diagrams with captions as labeled figures.
 
-- Include a diagram of the visual tokens (already there)
+- Include a diagram of the visual tokens
 - Include a diagram of the text tokens (layout vertically)
 - Include a diagram to illustrate the matching between visual tokens and text tokens as a mapping.
 
@@ -72,11 +73,11 @@ Write the section in detail.  Use algorithm environment.  Refer to the template 
 
 Present the algorithms in the sequence:
 
-- dynamic programming to obtain optimal alignment, but argue that it's not scalable.
-
-- greedy approximation for large scale alignment situations.
-
-- hybrid version to switch to greedy only when the alignment problem instance is large.
+1. Semantic Embeddings of Visual and Textual Tokens — SentenceTransformer encoding of both modalities.
+2. Cosine Similarity and Max-Weight Bipartite Matching — the shared Hungarian-algorithm primitive.
+3. Block-Level Alignment over AST-Node Ranges — matching visual blocks to contiguous AST-node ranges.
+4. Line-Level Alignment over Word-Bounded Sub-Spans — refining within each matched block using word-span candidates with min/max length filtering.
+5. Hierarchical Composition and Thresholding — how the two stages compose and how the similarity threshold governs rejection.
 
 Use tikz diagram to illustrate difficult algorithmic designs.
 
@@ -90,5 +91,5 @@ Provide python sample code to illustrate implementation details, but not full py
 
 Dedicate a subsection to especially describe paddle-ocr integration with the paddlepaddle neural network platform.
 
-Dedicate a subsection to describe the client/server architecture to support intelligent AI-powered Web application for advanced document reading.
+Dedicate a subsection to describe the client/server architecture in `ppx-align` and `ppx-svelte` to support intelligent AI-powered Web application for advanced document reading.
 
