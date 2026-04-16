@@ -8,4 +8,4 @@ build:
 	uv run ppx-align build ../output/resnet
 
 serve:
-	uv run ppx-align server ../output --slow
+	uv run ppx-align serve ../output --slow
