@@ -196,7 +196,15 @@
 							>
 								<Checkbox
 									checked={appState.showVisualTokens.get(level) ?? false}
-									onCheckedChange={(v) => appState.showVisualTokens.set(level, !!v)}
+									onCheckedChange={(v) => {
+									if (v) {
+										for (const l of ['block', 'line', 'word'] as TokenLevel[]) {
+											appState.showVisualTokens.set(l, l === level);
+										}
+									} else {
+										appState.showVisualTokens.set(level, false);
+									}
+								}}
 								/>
 								<span class="text-sm capitalize">{level}</span>
 							</label>
