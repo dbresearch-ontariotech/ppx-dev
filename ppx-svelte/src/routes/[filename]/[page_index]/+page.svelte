@@ -1,5 +1,11 @@
 <script lang="ts">
 	import { appState, api, type LayoutNode, type TokenLevel, type BlockAlignment, type LineAlignment } from '$lib/appstate.svelte';
+	const activeLevel = $derived.by((): TokenLevel | null => {
+		for (const [level, on] of appState.showVisualTokens) {
+			if (on) return level as TokenLevel;
+		}
+		return null;
+	});
 	import {
 		ResizablePaneGroup,
 		ResizablePane,
@@ -69,6 +75,7 @@
 						{ast}
 						{activeAlignments}
 						{activeLineAlignments}
+						{activeLevel}
 						baseurl={api.markdownResource(appState.filename, appState.pageIndex, '')}
 					/>
 				{/if}

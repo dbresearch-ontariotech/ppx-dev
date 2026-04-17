@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { appState, TOKEN_LEVEL_COLORS, type DocAlignment, type LayoutNode, type SelectedMarkdownRange, type TokenLevel } from '$lib/appstate.svelte';
 
@@ -16,9 +17,25 @@
 	let naturalWidth = $state(0);
 	let naturalHeight = $state(0);
 	let resolvedAlignment = $state<DocAlignment | null>(null);
+	let container: HTMLElement | undefined = $state();
 
 	// Clear hover state whenever this component mounts (page navigation remounts via {#key})
 	appState.activatedVisualTokens.clear();
+
+	let clearTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function handleTokenEnter(id: string) {
+		if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
+		appState.activatedVisualTokens.clear();
+		appState.activatedVisualTokens.add(id);
+	}
+
+	function handleTokenLeave(id: string) {
+		clearTimer = setTimeout(() => {
+			appState.activatedVisualTokens.delete(id);
+			clearTimer = null;
+		}, 80);
+	}
 
 	$effect(() => {
 		(alignment ?? Promise.resolve(null)).then((a) => { resolvedAlignment = a; });
@@ -49,9 +66,23 @@
 		}
 		return false;
 	}
+
+	$effect(() => {
+		const sel = selectedMarkdownRange;
+		const align = resolvedAlignment;
+		if (!sel || !align || !visibleTokens) return;
+		visibleTokens.then(async (tokens) => {
+			await tick();
+			const firstMatch = tokens?.find((t) => overlapsSelection(t.node_id, sel));
+			if (!firstMatch) return;
+			container
+				?.querySelector(`[data-token-id="${firstMatch.node_id}"]`)
+				?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		});
+	});
 </script>
 
-<div class="relative inline-block">
+<div bind:this={container} class="relative inline-block">
 	{#if loading}
 		<div class="flex items-center justify-center p-16">
 			<Spinner class="size-8" />
@@ -74,6 +105,7 @@
 				{@const active = appState.activatedVisualTokens.has(token.node_id)}
 				{@const selected = overlapsSelection(token.node_id, selectedMarkdownRange)}
 				<div
+					data-token-id={token.node_id}
 					role="region"
 					aria-label="{token.level_name} {token.node_id}"
 					style:position="absolute"
@@ -85,8 +117,8 @@
 					style:background-color={selected ? `${color}80` : active ? `${color}33` : 'transparent'}
 					style:box-sizing="border-box"
 					style:cursor="default"
-					onmouseenter={() => appState.activatedVisualTokens.add(token.node_id)}
-					onmouseleave={() => appState.activatedVisualTokens.delete(token.node_id)}
+					onmouseenter={() => handleTokenEnter(token.node_id)}
+					onmouseleave={() => handleTokenLeave(token.node_id)}
 				></div>
 			{/each}
 		{/await}
