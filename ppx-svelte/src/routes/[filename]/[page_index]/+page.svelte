@@ -50,6 +50,8 @@
 					filename={appState.filename}
 					pageIndex={appState.pageIndex}
 					{visibleTokens}
+					alignment={appState.alignment}
+					selectedMarkdownRange={appState.selectedMarkdownRange}
 				/>
 			{/if}
 		</div>
