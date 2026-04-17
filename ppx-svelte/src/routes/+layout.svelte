@@ -63,7 +63,7 @@
 			ast_index_start: parseInt(startEl.getAttribute('data-ast-index')!),
 			char_start:      prefixLen(startEl, range.startContainer, range.startOffset),
 			ast_index_end:   parseInt(endEl.getAttribute('data-ast-index')!),
-			char_end:        prefixLen(endEl,   range.endContainer,   range.endOffset),
+			char_end:        prefixLen(endEl,   range.endContainer,   range.endOffset) - 1,
 		};
 	}
 </script>

@@ -34,7 +34,7 @@
 	function buildSegments(alignments: BlockAlignment[]): Segment[] {
 		const highlighted = new Set(
 			alignments.flatMap((ba) =>
-				Array.from({ length: ba.ast_end - ba.ast_start }, (_, i) => ba.ast_start + i)
+				Array.from({ length: ba.ast_end - ba.ast_start + 1 }, (_, i) => ba.ast_start + i)
 			)
 		);
 
@@ -60,7 +60,7 @@
 			if (i < la.ast_index_start || i > la.ast_index_end) continue;
 
 			const start = i === la.ast_index_start ? la.char_start : 0;
-			const end   = i === la.ast_index_end   ? la.char_end   : len;
+			const end   = i === la.ast_index_end   ? la.char_end + 1 : len;  // char_end inclusive → +1 for slice
 
 			if (start < end) ranges.push({ start, end });
 		}

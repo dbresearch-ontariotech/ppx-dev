@@ -58,11 +58,11 @@ def get_content(
         return doc.markdown[start:end]
     elif block_alignment_target is not None:
         start = doc.ast_spans[block_alignment_target.ast_start][0]
-        end = doc.ast_spans[block_alignment_target.ast_end - 1][1]
+        end = doc.ast_spans[block_alignment_target.ast_end][1]  # ast_end inclusive
         return doc.markdown[start:end]
     elif char_alignment_target is not None:
         abs_start = doc.ast_spans[char_alignment_target.ast_index_start][0] + char_alignment_target.char_start
-        abs_end = doc.ast_spans[char_alignment_target.ast_index_end][0] + char_alignment_target.char_end
+        abs_end = doc.ast_spans[char_alignment_target.ast_index_end][0] + char_alignment_target.char_end + 1  # char_end inclusive
         return doc.markdown[abs_start:abs_end]
     else:
         raise ValueError("Exactly one keyword argument must be provided")

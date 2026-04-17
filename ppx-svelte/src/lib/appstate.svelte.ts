@@ -45,20 +45,20 @@ export type SelectedMarkdownRange = {
 	ast_index_start: number; // inclusive
 	char_start: number;      // inclusive
 	ast_index_end: number;   // inclusive
-	char_end: number;        // exclusive
+	char_end: number;        // inclusive
 } | null;
 
 export type BlockAlignment = {
-	ast_start: number;
-	ast_end: number;
+	ast_start: number;  // inclusive
+	ast_end: number;    // inclusive
 	score: number;
 };
 
 export type LineAlignment = {
-	ast_index_start: number;
-	char_start: number;
-	ast_index_end: number;
-	char_end: number;
+	ast_index_start: number; // inclusive
+	char_start: number;      // inclusive
+	ast_index_end: number;   // inclusive
+	char_end: number;        // inclusive
 	score: number;
 };
 
