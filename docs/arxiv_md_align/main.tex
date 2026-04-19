@@ -124,7 +124,7 @@
       textbooks, papers, articles --- and the abstract concepts they
       express is a grand challenge of \emph{agentic knowledge
             distillation}.  To help humans learn faster, AI agents need
-      specialised tools to traverse the layers between raw information
+      specialized tools to traverse the layers between raw information
       and actionable knowledge.  A critical missing link in this stack
       is the exact alignment between raw source documents and the
       structured text (Markdown) that downstream agents consume.
@@ -137,7 +137,7 @@
       establishes strict alignment between a document page and its
       Markdown transcription.  \texttt{ppx} treats a document as two
       complementary representations: a hierarchical \emph{Layout Tree}
-      $\LT$ of labelled bounding boxes produced by a layout analyser,
+      $\LT$ of labeled bounding boxes produced by a layout analyzer,
       and a \emph{Markdown document} $\MD$ produced by OCR over the
       same page.  The load-bearing contribution is a mapping between
       them that assigns each visual node a contiguous span of $\MD$
@@ -149,7 +149,7 @@
       set-theoretic formulation of multimodal alignment that separates
       the four-level Layout Tree from the Markdown AST and casts
       alignment as a pair of partial injective functions scored by
-      semantic similarity.  Second, we realise the model as a
+      semantic similarity.  Second, we realize the model as a
       composable, embedding-based hierarchical aligner --- max-weight
       bipartite matching over cosine similarities of Sentence-BERT
       embeddings, solved via the Jonker--Volgenant
@@ -159,7 +159,7 @@
       client/server architecture for interactive AI-assisted document
       reading.  Third, we quantify alignment quality on a 130-page
       corpus across six academic documents, measure degradation under
-      controlled OCR-noise injection, and characterise a staircase
+      controlled OCR-noise injection, and characterize a staircase
       structure of precision / recall / $F1$ collapse with increasing
       corruption.  Together these contributions provide the navigation
       mechanism between documents and information that agent-driven
@@ -192,12 +192,12 @@ turn raw documents into understanding is no longer bounded by how
 quickly any one of us can read.
 
 \paragraph{Three layers an agent must cross.}
-The obstacle to this programme is that agents must continually
+The obstacle to this program is that agents must continually
 traverse the boundaries between three qualitatively different
 representations of the same content.  At the bottom sits the
 \emph{document}: a page image or PDF, with visual structure
 (titles, paragraphs, tables, figures) but no addressable text.  In
-the middle sits \emph{information}: a linearised textual
+the middle sits \emph{information}: a linearized textual
 transcription --- typically Markdown produced by an OCR pipeline ---
 that is directly consumable by a language model but has lost its
 spatial grounding.  At the top sits \emph{concepts}: abstractions
@@ -212,10 +212,10 @@ The weakest rung on this ladder is the one between \emph{documents}
 and \emph{information} --- specifically, the exact correspondence
 between the visual structure of a page and the Markdown extracted
 from it.  Optical character recognition reduces a document image to
-a linearised text stream, discarding the spatial structure that a
+a linearized text stream, discarding the spatial structure that a
 reader uses to navigate a page \cite{ieee2025systematic}.  Document
 layout analysis, in parallel, recovers that spatial structure as a
-hierarchy of labelled bounding boxes
+hierarchy of labeled bounding boxes
 \cite{PPDocLayout, wang2024dlaformer}, but says nothing about the
 textual content those boxes contain.  Modern toolkits such as
 PaddleOCR / PPStructure\,V3 \cite{PaddleOCR30} produce \emph{both}
@@ -230,7 +230,7 @@ given piece of information came from.
 This thesis introduces the \emph{Parsed Page eXplorer} (\texttt{ppx}),
 a foundational tool built explicitly to be the navigation mechanism
 between documents and information.  Given a Layout Tree $\LT$
-produced by a layout analyser and a Markdown document $\MD$ produced
+produced by a layout analyzer and a Markdown document $\MD$ produced
 by an OCR engine, \texttt{ppx} assigns to each visual token in $\LT$
 a contiguous span of $\MD$ that reproduces its transcription,
 together with the similarity score that justified the match.  The
@@ -263,7 +263,7 @@ statement and an established evaluation protocol in the literature.
             from the Markdown AST and poses alignment as a pair of partial
             injective functions scored by semantic similarity.
       \item A \textbf{composable pipeline} (\cref{sec:algo,sec:impl}) ---
-            the \texttt{ppx} system --- realising the model through
+            the \texttt{ppx} system --- realizing the model through
             sentence-embedding encoding of both modalities, hierarchical
             max-weight bipartite matching via the Jonker--Volgenant
             algorithm at block and line granularities, and a type-safe
@@ -284,10 +284,10 @@ the ladder --- concepts and abstractions formed from the extracted
 information --- is the domain of whichever agent consumes
 \texttt{ppx}'s output and is outside the scope of this thesis.
 
-\paragraph{Organisation.}
+\paragraph{Organization.}
 \Cref{sec:related} surveys OCR, layout analysis, reading-order
 recovery, and the small prior literature on cross-modal alignment of
-visual tokens and text.  \Cref{sec:formal} formalises the alignment
+visual tokens and text.  \Cref{sec:formal} formalizes the alignment
 problem set-theoretically.  \Cref{sec:algo} presents the
 embedding-based hierarchical aligner and its two constituent
 algorithms.  \Cref{sec:impl} describes the three-package
@@ -318,15 +318,15 @@ Classical engines such as \texttt{Tesseract} \cite{smith2007tesseract}
 began with per-glyph templates and progressed to LSTM-based
 recognition in their later releases; contemporary systems pair
 fully-convolutional text detectors with attention-based or
-transformer-based recognisers.  The breadth of this progression is
-catalogued in recent systematic reviews of the field
+transformer-based recognizers.  The breadth of this progression is
+cataloged in recent systematic reviews of the field
 \cite{ieee2025systematic}.
 
 For \texttt{ppx} the backbone of interest is the \emph{PaddleOCR}
 family.  PP-OCRv3 \cite{PaddleOCRv3} is the lightweight
-detector-recogniser pair that supplies line- and word-level
+detector-recognizer pair that supplies line- and word-level
 transcriptions.  PaddleOCR\,3.0 \cite{PaddleOCR30} extends this core
-with the PP-StructureV3 layout analyser and a Markdown-first
+with the PP-StructureV3 layout analyzer and a Markdown-first
 document parsing front-end, which together give our pipeline both of
 the representations it needs to align.  PaddleOCR-VL
 \cite{paddleocrvl2025} is an ultra-compact vision-language model
@@ -372,7 +372,7 @@ and image features.  LayoutLMv3 \cite{huang2022layoutlmv3} is
 notable for including a word-patch alignment objective during
 pre-training; UDOP \cite{tang2023udop} unifies vision, text, and
 layout into a single generative transformer capable of document
-understanding and generation.  Both are natural neighbours to our
+understanding and generation.  Both are natural neighbors to our
 work because both operate over text-with-layout inputs, but both
 express alignment as a \emph{model-internal} pre-training signal
 rather than as an externally-visible mapping between visual tokens
@@ -403,8 +403,8 @@ detection, recognition, and reading-order into a single model.
       {\'E}clair \cite{eclair2025extracting} predicts text, bounding
 boxes, and semantic class in reading order as one end-to-end
 forward pass.  Together with Nougat \cite{blecher2023nougat}, these
-are the closest single-shot analogues to our decomposed pipeline.
-The trade-off is familiar: integrated models can be optimised
+are the closest single-shot analogs to our decomposed pipeline.
+The trade-off is familiar: integrated models can be optimized
 jointly but expose fewer well-typed intermediates, while a
 decomposed pipeline (\cref{sec:impl}) is easier to inspect, swap
 components in, and benchmark stage-by-stage.
@@ -424,14 +424,14 @@ of work.
 
 \subsection{Cross-Modal Alignment of Visual Tokens and Text}
 
-The direct neighbours of our problem are the few lines of prior
+The direct neighbors of our problem are the few lines of prior
 work that explicitly address an alignment between visual and textual
 representations of a document.  Each intersects our setting along
 one axis but not all of them.
 
 \paragraph{Token-patch alignment inside pre-trained models.}  The
 word-patch alignment objective of LayoutLMv3
-\cite{huang2022layoutlmv3} is the closest conceptual neighbour we
+\cite{huang2022layoutlmv3} is the closest conceptual neighbor we
 know of: during pre-training the model is encouraged to map masked
 words to their corresponding image patches.  Two differences matter.
 First, this is a \emph{pre-training} signal internal to a single
@@ -439,7 +439,7 @@ model, not a standalone aligner one can invoke at inference time on
 an arbitrary OCR output.  Second, it operates at word / patch
 granularity, whereas \texttt{ppx} aligns at the block- and
 line-level structure of the AST.  LayoutLMv3's alignment is a
-representation-learning mechanism; ours is an output artefact.
+representation-learning mechanism; ours is an output artifact.
 
 \paragraph{Scene-text alignment.}  ODM \cite{duan2024odm} proposes
 a further text-image alignment objective aimed at scene-text
@@ -471,7 +471,7 @@ objectives of the Document-AI literature and the string-level
 alignment of the post-OCR correction tradition.  Framing \texttt{ppx}
 as the navigation mechanism between documents and information
 (\cref{sec:intro}) is intended partly as a research-program
-statement: the alignment artefact itself, not the model that
+statement: the alignment artifact itself, not the model that
 produced it, is the primary object of study.
 
 %% ---------------------------------------------------------------
@@ -518,11 +518,11 @@ the Unicode character set.
 
 \subsection{Visual Tokens and the Layout Tree}
 
-The layout analyser \cite{PPDocLayout, PaddleOCR30} parses a page into a
-four-level hierarchy of labelled bounding boxes.
+The layout analyzer \cite{PPDocLayout, PaddleOCR30} parses a page into a
+four-level hierarchy of labeled bounding boxes.
 
 \begin{definition}[Visual Token Layers]
-      A page is analysed into four ordered token layers:
+      A page is analyzed into four ordered token layers:
       \begin{itemize}
             \item $R = \{r_i\}$ --- \emph{region} bounding boxes (coarsest granularity)
             \item $K = \{k_j\}$ --- \emph{block} bounding boxes, each carrying a
@@ -580,7 +580,7 @@ four-level hierarchy of labelled bounding boxes.
                               }
                   };
       \end{tikzpicture}
-      \caption{Schematic of the Layout Tree $\LT$.  Colours denote hierarchy
+      \caption{Schematic of the Layout Tree $\LT$.  Colors denote hierarchy
             levels: \textcolor{blue!60}{region} $\supset$
             \textcolor{green!60!black}{block} $\supset$
             \textcolor{orange!80!black}{line} $\supset$
@@ -680,13 +680,13 @@ yields a structured view suitable for alignment.
 
 The alignment problem pairs visual tokens with Markdown at two granularities:
 blocks to AST-node ranges, and lines to word-bounded character sub-spans
-within each block's range.  We formalise both as \emph{partial} functions
+within each block's range.  We formalize both as \emph{partial} functions
 with a rejection regime governed by a similarity threshold.
 
 \begin{definition}[Semantic Embedding]
       A \emph{semantic embedding} is a function
       $\varepsilon : \Sigma^{*} \to \mathbb{R}^{d}$ that maps a string to a
-      $d$-dimensional unit vector.  We realise $\varepsilon$ with a
+      $d$-dimensional unit vector.  We realize $\varepsilon$ with a
       Sentence-BERT encoder \cite{reimers2019sbert, wang2020minilm}.
 \end{definition}
 
@@ -733,7 +733,7 @@ with a rejection regime governed by a similarity threshold.
       The \emph{multimodal alignment problem} is, given $\LT$, $\MD$,
       embedding $\varepsilon$, and threshold $\theta$, to compute the pair
       $(\phi_K^{*},\, \{\phi_\ell^{(k)*}\}_{k\in\mathrm{dom}(\phi_K^{*})})$ that
-      maximises the total similarity score
+      maximizes the total similarity score
       \[
             \sum_{k \in \mathrm{dom}(\phi_K)}
             \!\!\mathrm{sim}(k, \mu[\widetilde{\sigma}(\phi_K(k))])
@@ -824,7 +824,7 @@ with a rejection regime governed by a similarity threshold.
 \label{sec:algo}
 %% ---------------------------------------------------------------
 
-This section operationalises the multimodal alignment problem of
+This section operationalizes the multimodal alignment problem of
 \cref{def:block-align,def:line-align} as a sequence of concrete
 algorithms.  The pipeline proceeds in three logical stages.  First,
 an \emph{encode} stage lifts visual tokens and Markdown fragments into
@@ -864,11 +864,11 @@ $\mathbf{e}_v = \varepsilon(\mathrm{content}(v))$.  On the
 \emph{textual side}, each candidate Markdown fragment
 $y \in \Sigma^{*}$ receives $\mathbf{e}_y = \varepsilon(y)$.  At
 block granularity these candidates are AST-node ranges $[i, j)$
-materialised as the Markdown slice
+materialized as the Markdown slice
 $\mu[\widetilde{\sigma}([i, j))]$; at line granularity they are the
 word-bounded sub-spans enumerated in \cref{sec:line}.
 
-Encoding is both batched and memoised.  A single
+Encoding is both batched and memoized.  A single
 \texttt{functools.cache}'d \texttt{get\_model} factory returns the
 shared \texttt{SentenceTransformer} instance, so model-loading cost
 is paid exactly once per process.  Within a page, every visual-token
@@ -899,14 +899,14 @@ floating-point multiplies.
 \paragraph{From similarity to bipartite matching.}
 At each hierarchy level the alignment sub-problem is: select a
 \emph{partial injective function} $\phi : \{0, \ldots, m{-}1\}
-      \rightharpoonup \{0, \ldots, n{-}1\}$ that maximises the total
+      \rightharpoonup \{0, \ldots, n{-}1\}$ that maximizes the total
 similarity $\sum_i S_{i, \phi(i)}$.  Injectivity encodes the
 requirement from \cref{def:block-align,def:line-align} that no
 Markdown fragment be reused for two different visual tokens;
 partiality accommodates the rejection regime introduced by the
 similarity threshold below.  This is precisely the \emph{linear
       assignment problem} over the rectangular cost matrix
-$C = -S$, a classical combinatorial-optimisation problem solvable in
+$C = -S$, a classical combinatorial-optimization problem solvable in
 polynomial time.
 
 We solve it with SciPy's \texttt{linear\_sum\_assignment}, which
@@ -926,11 +926,11 @@ terminate early.
 After the optimum has been selected, we apply a \emph{similarity
       threshold} $\theta \in [-1, 1]$: for each pair $(i, j)$ returned
 by the solver, keep the edge only if $S_{i, j} \ge \theta$.  This
-realises the partial-function semantics of
+realizes the partial-function semantics of
 \cref{def:block-align,def:line-align}: a visual token for which no
 candidate scores above $\theta$ is left unmatched rather than forced
 into a low-confidence assignment.  Crucially, thresholding happens
-\emph{after} global optimisation, so it can only prune weak edges; it
+\emph{after} global optimization, so it can only prune weak edges; it
 never swaps a high-scoring edge for a weaker one.  The role of
 $\theta$ as a precision / recall knob is discussed in
 \cref{sec:compose}.
@@ -950,7 +950,7 @@ embedding matrices and the threshold change.
             \State $S \gets 1 - \mathrm{cdist}(A, B, \text{cosine})$
             \Comment{pairwise cosine similarity, $S \in \mathbb{R}^{m\times n}$}
             \State $(I, J) \gets \textsc{LinearSumAssignment}(-S)$
-            \Comment{Jonker--Volgenant, maximise total similarity}
+            \Comment{Jonker--Volgenant, maximize total similarity}
             \State $M \gets \emptyset$
             \For{$(i, j) \in \mathrm{zip}(I, J)$}
             \If{$S_{i,j} \ge \theta$}
@@ -974,7 +974,7 @@ which ranges are plausible candidates; we therefore enumerate
 \emph{every} contiguous AST-node range.  Concretely, for all
 $0 \le i < j \le N$ the pair $[i, j)$ identifies one candidate,
 yielding $\binom{N+1}{2} = O(N^2)$ candidates per page.  For each
-range we materialise the induced Markdown slice
+range we materialize the induced Markdown slice
 $\mu[\widetilde{\sigma}([i, j))]$ as a string, record the pair
 $(i, j)$, and hand the string to the encoder.  The recorded index
 pair is what lets us translate the matcher's numerical output back
@@ -1016,16 +1016,16 @@ coarse, semantically meaningful granularity is a deliberate design
 choice in \texttt{get\_doc\_range\_embeddings}.  Typical pages in our
 corpus yield $N \approx 10$--$50$, so $N^2 \approx 10^2$--$10^3$
 candidates --- comfortably within a single batched SBERT call and a
-sub-second Jonker--Volgenant solve.  An alternative tokenisation at
+sub-second Jonker--Volgenant solve.  An alternative tokenization at
 the word level would push $N$ into the hundreds or low thousands and
 inflate $N^2$ by three to six orders of magnitude, making block
-matching computationally intractable; a character-level tokenisation
+matching computationally intractable; a character-level tokenization
 would do so by several additional orders of magnitude.
 
 The mitigation is therefore a large constant-factor reduction rather
 than an asymptotic improvement: the $O(N^2)$ candidate count and the
 derived $O(N^6)$ worst-case assignment cost remain.  Pages with many
-short AST leaves --- fragmented equations, long itemised lists,
+short AST leaves --- fragmented equations, long itemized lists,
 numerous figure captions --- can still stress the block stage in
 practice, which is one of the reasons the pipeline decomposes line
 matching onto already-matched blocks rather than attempting a single
@@ -1051,7 +1051,7 @@ enforcement.
 
 \paragraph{Length-filtered word-bounded candidates.}
 Inside the block's AST range, we collect every word span reported by
-the Markdown tokeniser,
+the Markdown tokenizer,
 $W_k = \bigcup_{p = i^{*}}^{j^{*}-1} \omega(a_p)$, annotating each
 span with the AST-node index it came from.  Enumerating every pair
 $(p, q)$ with $p < q \le |W_k|$ gives an $O(|W_k|^2)$ set of
@@ -1059,7 +1059,7 @@ word-bounded character sub-spans $[c_s, c_e)$ --- candidates whose
 endpoints align to token boundaries rather than to arbitrary
 characters.  Word-boundedness avoids producing candidates that cut a
 word in half, which would both look nonsensical in the viewer of
-\cref{sec:clientserver} and destabilise the cosine score.
+\cref{sec:clientserver} and destabilize the cosine score.
 
 Without pruning, the word-level candidate count can still be large.
 We therefore apply a \emph{length filter} keyed to the observed line
@@ -1154,7 +1154,7 @@ $O(N_{\text{words}}^2)$, which is two to three orders of magnitude
 larger than the per-block $O(|W_k|^2)$ enumeration we actually
 perform; combined with a similarity matrix of corresponding size and
 a cubic assignment solve, the flat version is combinatorially
-prohibitive for full pages.  Block-level conditioning localises each
+prohibitive for full pages.  Block-level conditioning localizes each
 line-matching sub-problem to a single matched block; combined with
 the length filter, the line stage's total cost scales roughly
 linearly in the number of matched blocks per page.
@@ -1245,12 +1245,12 @@ line-level sub-problem.
 \label{sec:impl}
 %% ---------------------------------------------------------------
 
-The algorithms of \cref{sec:algo} are realised as a three-package Python
+The algorithms of \cref{sec:algo} are realized as a three-package Python
 and TypeScript system: \texttt{ppx-ocr} produces per-page visual tokens
 and Markdown from a raster PDF, \texttt{ppx-align} builds the layout tree,
 runs embedding-based alignment, and exposes the result over HTTP, and
 \texttt{ppx-svelte} is an interactive browser client that consumes the
-HTTP API to display synchronised views of the page image and the
+HTTP API to display synchronized views of the page image and the
 Markdown.  \cref{fig:sys-arch} gives the top-level picture.
 
 \begin{figure}[h]
@@ -1282,7 +1282,7 @@ Markdown.  \cref{fig:sys-arch} gives the top-level picture.
 
       \end{tikzpicture}
       \caption{System architecture.  Solid arrows denote data flow; orange
-            nodes are on-disk artefacts.  \texttt{ppx-ocr} runs the
+            nodes are on-disk artifacts.  \texttt{ppx-ocr} runs the
             PaddleOCR / PPStructure\,V3 pipeline and writes one folder per page.
             \texttt{ppx-align build} ingests those folders, constructs the
             Layout Tree and Markdown AST, and persists \texttt{alignment.json}
@@ -1305,13 +1305,13 @@ and word-level bounding boxes together with their OCR
 transcriptions.  We disable document unwarping because page
 rectification has already been handled upstream by the PDF
 renderer.  \texttt{PPStructureV3} \cite{PPDocLayout} is the
-document-structure analyser: it produces region- and block-level
-bounding boxes labelled with semantic categories (titles,
+document-structure analyzer: it produces region- and block-level
+bounding boxes labeled with semantic categories (titles,
 paragraphs, tables, figures, formulas) and returns a Markdown
 rendering of the page.  Both models share the PaddlePaddle runtime,
 and \texttt{ppx-ocr} instantiates each exactly once per process,
 caching them with \texttt{functools.cache} so that the GPU
-model-load cost is paid once and amortised across every page.
+model-load cost is paid once and amortized across every page.
 
 Keeping the two models behind separate adapters also makes the
 pipeline portable.  \texttt{ppx-ocr} constructs two intermediate
@@ -1344,8 +1344,8 @@ def get_structure_model():
 
 The \texttt{ppx-ocr} command-line driver \cite{PaddleOCR30} converts
 a PDF into a directory structure keyed by page index, with one
-subfolder per page containing all artefacts downstream stages need.
-The canonical artefacts include the rasterised RGB page image, the
+subfolder per page containing all artifacts downstream stages need.
+The canonical artifacts include the rasterized RGB page image, the
 Markdown rendering produced by \texttt{PPStructureV3}, the
 region- and block-level bounding-box tables with PP-DocLayout
 labels \cite{PPDocLayout}, the line- and word-level OCR detection
@@ -1364,10 +1364,10 @@ A recurring source of bugs in document-analysis pipelines is silent
 schema drift between stages: a column rename in OCR output that
 goes unnoticed until an alignment metric mysteriously drops several
 weeks later.  \texttt{ppx} guards against this with two
-complementary layers of validation, one for tabular artefacts and
+complementary layers of validation, one for tabular artifacts and
 one for structured values.
 
-Tabular artefacts --- bounding-box tables, word tokens, layout rows
+Tabular artifacts --- bounding-box tables, word tokens, layout rows
 --- are declared as subclasses of \texttt{pandera.DataFrameModel}
 with explicit columns, dtypes, and nullability constraints.  Schemas
 such as \texttt{LineTokenSchema}, \texttt{WordTokenSchema},
@@ -1381,9 +1381,9 @@ Non-tabular values --- \texttt{ParsedDocument},
 \texttt{BlockAlignmentTarget}, \texttt{CharAlignmentTarget},
 \texttt{DocAlignment} --- are Pydantic \texttt{BaseModel}s.  The
 alignment results in particular are wire-format-ready:
-\texttt{DocAlignment} serialises directly to the JSON consumed by
+\texttt{DocAlignment} serializes directly to the JSON consumed by
 the HTTP API (\cref{sec:clientserver}), closing the loop from
-algorithmic output to network response with no ad-hoc marshalling
+algorithmic output to network response with no ad-hoc marshaling
 code.
 
 \begin{lstlisting}[caption={Pydantic models for alignment targets
@@ -1411,7 +1411,7 @@ class DocAlignment(BaseModel):
 
 Every stage of the pipeline --- OCR, structure analysis,
 layout-tree construction, Markdown parsing, block alignment, line
-alignment --- is a pure function from one validated artefact to
+alignment --- is a pure function from one validated artifact to
 another.  The types of \cref{sec:types} are the glue that makes
 this composition safe: a stage advertises its input and output as
 Pandera or Pydantic types, and a mismatched upstream raises at the
@@ -1422,7 +1422,7 @@ the Markdown side, \texttt{align\_blocks} returning a mapping from
 block node ids to \texttt{BlockAlignmentTarget}, and
 \texttt{align\_tree} returning the full \texttt{DocAlignment} that
 the server consumes.  No stage mutates its inputs; each returns a
-new artefact that can be cached, persisted, or fed to multiple
+new artifact that can be cached, persisted, or fed to multiple
 downstream stages.  The \texttt{ppx-align} encoder runs the
 \texttt{SentenceTransformer} forward pass on a CUDA device when one
 is available, with a CPU fallback preserved for development.
@@ -1441,7 +1441,7 @@ spans $\omega$ are produced by NLTK's
 node's content.  A single helper function,
 \texttt{get\_content}, dispatches over an AST range, an AST index,
 a \texttt{BlockAlignmentTarget}, or a \texttt{CharAlignmentTarget}
-to recover the Markdown slice backing any alignment artefact,
+to recover the Markdown slice backing any alignment artifact,
 giving viewers and debuggers a uniform retrieval API without
 re-implementing span arithmetic.
 
@@ -1454,15 +1454,15 @@ blocks-only mode, and the noise-variant benchmark runs used in
 the project repository for the full command-line surface.  The
 benchmark-variant runs are worth naming explicitly because they are
 how \cref{sec:bench}'s results come into being: a single invocation
-can produce auxiliary artefacts named \texttt{markdown\_\{level\}.md}
+can produce auxiliary artifacts named \texttt{markdown\_\{level\}.md}
 and \texttt{alignment\_\{level\}.json} alongside the canonical
-artefacts, one pair per noise level, which \texttt{ppx-bench}
+artifacts, one pair per noise level, which \texttt{ppx-bench}
 later consumes directly without re-running the OCR stage.
 
 \subsection{Client/Server Architecture for AI-Assisted Reading}
 \label{sec:clientserver}
 
-The alignment artefacts are only useful if a human --- or an LLM
+The alignment artifacts are only useful if a human --- or an LLM
 agent --- can explore them.  To that end, \texttt{ppx-align serve}
 exposes a thin FastAPI facade over the on-disk output directory,
 and \texttt{ppx-svelte} consumes it in the browser.  The backend
@@ -1488,7 +1488,7 @@ versions collected in \cref{app:viewer-full}
 of each screenshot renders the original source PDF with the hovered
 visual token's bounding box highlighted, while the right panel shows
 the corresponding span in the raw OCR-generated Markdown.  Both
-examples expose real OCR artefacts --- collapsed table structure in
+examples expose real OCR artifacts --- collapsed table structure in
 the CLIP example, raw \texttt{\$\ldots\$} equation delimiters in the
 ResNet example --- yet the alignment still resolves to the correct
 span, which is consistent with the content-type resilience
@@ -1498,7 +1498,7 @@ Separating \texttt{build} from \texttt{serve} is a deliberate
 architectural choice.  Alignment is GPU-heavy and batch-oriented;
 serving is I/O bound and latency-sensitive.  Splitting them lets
 the heavy stage run once per corpus update --- producing the typed
-artefacts the server then reads directly --- while the server runs
+artifacts the server then reads directly --- while the server runs
 as a lightweight sidecar.  The server deliberately has no model
 dependencies (no PaddlePaddle, no PyTorch), which keeps its
 container footprint small and lets it be deployed behind an
@@ -1536,7 +1536,7 @@ its GPU weights to the network.
                   {hover / select} (api.south);
       \end{tikzpicture}
       \caption{Client/server topology.  \texttt{ppx-align serve} reads
-            per-page artefacts from disk and exposes them as JSON and static
+            per-page artifacts from disk and exposes them as JSON and static
             resources.  The SvelteKit viewer reaches the backend through the
             Vite dev proxy in development and a reverse proxy in production.
             The dashed arrow denotes user interactions (hover highlights,
@@ -1562,7 +1562,7 @@ its GPU weights to the network.
             original source PDF with the hovered visual token's
             bounding box highlighted, and the right-hand panel shows
             the corresponding span in the raw OCR-generated Markdown.
-            OCR artefacts --- collapsed tables in the CLIP example,
+            OCR artifacts --- collapsed tables in the CLIP example,
             raw \texttt{\$\ldots\$} equation delimiters in the ResNet
             example --- are preserved intentionally: the alignment
             resolves to the correct span regardless of downstream
@@ -1579,7 +1579,7 @@ its GPU weights to the network.
 \label{sec:bench}
 %% ---------------------------------------------------------------
 
-We quantify the pipeline's behaviour along three axes: alignment quality
+We quantify the pipeline's behavior along three axes: alignment quality
 on uncorrupted inputs, degradation under controlled OCR-noise injection,
 and precision / recall / F1 relative to the uncorrupted reference.  All
 experiments are implemented in the \texttt{ppx-bench} package.
@@ -1595,7 +1595,7 @@ We run the benchmarks over a corpus of six academic documents ---
 \texttt{ppx-align} pipeline of \cref{sec:impl}.  Together the corpus
 yields 1{,}505 block-level visual tokens and 13{,}908 line-level visual
 tokens, a scale sufficient to expose both aggregate trends and
-per-label subpopulations.  The per-document composition is summarised
+per-label subpopulations.  The per-document composition is summarized
 in \cref{tab:bench-corpus}.
 
 The six documents were selected as a convenience sample spanning
@@ -1694,7 +1694,7 @@ shift in mean line score.  The \emph{precision/recall} benchmark
 (\cref{sec:bench-pr}) treats the noise-$0$ alignment as a gold-standard
 proxy and computes per-line precision, recall, and $F1$ at 13 noise
 levels densely sampled in $[0, 0.2]$, isolating the transition from
-intact behaviour to catastrophic failure.
+intact behavior to catastrophic failure.
 
 \paragraph{Corruption model.}
 The corruption routine in \texttt{ppx-bench.core.corrupt} operates on
@@ -1745,7 +1745,7 @@ overlap of $0.79$ with a cross-document standard deviation of $0.07$,
 and a mean line overlap of $0.80$ with $\sigma = 0.08$
 (\cref{tab:bench-vanilla-agg}).  The small cross-document spread across
 six structurally diverse sources indicates that the pipeline
-generalises: no single document pulls the aggregate in either
+generalizes: no single document pulls the aggregate in either
 direction.
 
 \begin{table}[h]
@@ -1775,7 +1775,7 @@ The aggregate hides substantial structural variation.  Grouping by
 block label reveals a strong bimodal split between \emph{text-like}
 content, which aligns near-perfectly, and \emph{non-textual or
       sparse-signal} content, which aligns poorly or not at all.
-\cref{tab:bench-vanilla-bimodality} summarises the groups.
+\cref{tab:bench-vanilla-bimodality} summarizes the groups.
 
 \begin{table}[h]
       \centering
@@ -1815,7 +1815,7 @@ content, which aligns near-perfectly, and \emph{non-textual or
       \end{tabular}
       \caption{Line-level mean alignment score by block-label group.
             Values in the middle column are \emph{line means}; block-level
-            context is given in-row where it clarifies the behaviour.
+            context is given in-row where it clarifies the behavior.
             Text-like content and non-textual content sit on opposite
             ends of the distribution, with almost no mass in the
             middle.}
@@ -1858,7 +1858,7 @@ longer, text-heavy paragraphs with few auxiliary blocks.
             \texttt{text} / \texttt{table} / \texttt{reference}; mass at
             $\mathrm{score}{=}0$ is \texttt{unknown} plus \texttt{image}.
             Structural bimodality across content types is concrete rather than
-            a tail artefact.}
+            a tail artifact.}
       \label{fig:bench-vanilla-stacked}
 \end{figure}
 
@@ -1915,7 +1915,7 @@ at noise $0.20$ --- a $40.5\%$ drop from baseline.
 \end{table}
 
 \paragraph{Distributional shift.}
-\cref{fig:bench-noise} visualises the same data as per-noise kernel
+\cref{fig:bench-noise} visualizes the same data as per-noise kernel
 density estimates.  The score-$1.0$ peak visible at noise $0$
 progressively shifts leftward and flattens as corruption grows, with
 probability mass moving from the unit-peak toward the middle of the
@@ -1999,7 +1999,7 @@ comparable magnitude: $F1$ from $0.62$ to $0.51$, block-error from
 $26\%$ to $36\%$.  An earlier shoulder between $0.005$ and $0.006$
 triples the block-error rate ($3\% \to 10\%$) even though $F1$ moves
 by only $0.05$ --- the damage registers first on blocks and only
-later propagates into line-level scores.  We hypothesise that the
+later propagates into line-level scores.  We hypothesize that the
 staircase reflects content-length variation in block embeddings:
 short, low-distinctiveness blocks lose their similarity margin earlier
 than long, text-rich blocks, so increasing noise knocks out successive
@@ -2081,7 +2081,7 @@ parent block lands in the right AST-node range, the line's
 character-level span is usually exact; when it does not, the line
 contributes $0$ to every aggregate regardless of whether the local
 matcher would have produced a reasonable span.  There is little
-partial-credit behaviour in between.
+partial-credit behavior in between.
 
 \paragraph{Block matching is the fragile link.}  Consequently the
 block-alignment stage of \cref{sec:block} is where noise causes the
@@ -2107,7 +2107,7 @@ share the same decay trajectory under noise.  Differences between
 \texttt{rl} and \texttt{PubLayNet} are expressed as a vertical offset
 on the score axis rather than as differential sensitivity; the
 per-document ordering at noise $0$ is preserved throughout the sampled
-range.  Document-level generalisation is therefore robust, even as
+range.  Document-level generalization is therefore robust, even as
 per-document staircases differ in where along the noise axis their
 step-changes land.
 
@@ -2134,7 +2134,7 @@ between a document and the Markdown produced from it.  We introduced
 the \emph{Parsed Page eXplorer} (\texttt{ppx}) as a foundational tool
 for that correspondence, developed it across three chapters, and
 evaluated it on a modest but diverse benchmark.  The remainder of
-this section summarises what was contributed, what the contributions
+this section summarizes what was contributed, what the contributions
 do not resolve, and the directions for which the present work lays
 the groundwork.
 
@@ -2153,7 +2153,7 @@ integrated end-to-end models --- can use to describe their own
 outputs in terms compatible with ours.
 
 Second, \cref{sec:algo,sec:impl} presented a \textbf{composable
-      pipeline} that realises the formulation.  The algorithmic core is
+      pipeline} that realizes the formulation.  The algorithmic core is
 embedding-based hierarchical matching: Sentence-BERT encodings of
 visual transcriptions and Markdown candidates are fed into a
 max-weight bipartite matcher solved by the Jonker--Volgenant
@@ -2162,13 +2162,13 @@ AST-node ranges, then within each matched block at line granularity
 over word-bounded character sub-spans.  The system incarnation ships
 as three cooperating packages --- \texttt{ppx-ocr},
 \texttt{ppx-align}, and \texttt{ppx-svelte} --- with type-safe
-intermediate artefacts, a FastAPI HTTP surface, and a SvelteKit
+intermediate artifacts, a FastAPI HTTP surface, and a SvelteKit
 viewer built to make alignments inspectable case-by-case.
 
 Third, \cref{sec:bench} provided an \textbf{empirical benchmark}
-quantifying the pipeline's behaviour.  On a 130-page,
+quantifying the pipeline's behavior.  On a 130-page,
 six-document corpus we measured aggregate alignment quality under
-clean inputs, characterised the strong bimodality of per-label
+clean inputs, characterized the strong bimodality of per-label
 scores (text-like content aligns near-perfectly; non-textual content
 does not), and exercised the pipeline under controlled OCR-noise
 injection.  The most distinctive finding is the \emph{staircase}
@@ -2207,12 +2207,12 @@ observed noise thresholds.
 
 \paragraph{Domain scope.}
 The pipeline and benchmark are tuned to English-language academic
-PDFs rendered by PaddleOCR / PPStructure\,V3.  Behaviour on
+PDFs rendered by PaddleOCR / PPStructure\,V3.  Behavior on
 multi-script documents, handwritten material, historical typography,
 and born-digital formats with unusual layout conventions is untested
 and should not be assumed to transfer.
 
-\paragraph{Dependence on the upstream layout analyser.}
+\paragraph{Dependence on the upstream layout analyzer.}
 \texttt{ppx} is a consumer of the Layout Tree produced by
 PP-StructureV3; errors upstream propagate downstream.  A block that
 the detector mis-segments cannot be recovered by any alignment
@@ -2245,7 +2245,7 @@ escalate a low-margin block to a fallback matcher.
 At the encoder level, \textbf{domain-adapted embeddings} are a
 plausible lever for the content-type sensitivity limitation.
 Replacing \texttt{all-MiniLM-L6-v2} with a model fine-tuned on
-Markdown / scientific text pairs should improve behaviour on
+Markdown / scientific text pairs should improve behavior on
 equations and tables, where general-purpose sentence embeddings are
 least informative.  The encode stage of \cref{sec:algo} is
 deliberately isolated behind a single function so that such a swap
@@ -2263,19 +2263,80 @@ At the matching-formulation level, \textbf{larger-context matching}
 would replace sentence-level embeddings with cross-attention between
 each visual token and a context window of surrounding AST nodes, so
 that disambiguation across near-duplicate blocks exploits the
-layout-tree neighbourhood rather than discarding it.  This would
+layout-tree neighborhood rather than discarding it.  This would
 push \texttt{ppx} closer in spirit to LayoutLMv3's word-patch
 objective \cite{huang2022layoutlmv3}, but applied as an inference-time
 matcher producing an externally-visible alignment rather than as a
 model-internal pre-training signal.
 
-Taken together, these directions share a common structure: none
-require re-architecting the pipeline, and all rest on the typed
-boundaries that \cref{sec:impl} already exposes.  In that sense the
+\paragraph{Extending to concept-space alignment.}
+The five directions above all sharpen the document $\leftrightarrow$
+information rung of the agentic ladder introduced in
+\cref{sec:intro}.  The natural extension is to climb to the next
+rung: align \emph{information} to the \emph{concepts} and claims it
+supports.  The formal model of \cref{sec:formal} transfers in
+structure if not in detail.  One would replace the Markdown AST
+$\mathcal{A}$ with a concept graph --- entities, relations, and
+supporting claims --- and replace the Sentence-BERT embedding
+$\varepsilon$ with a model whose geometry reflects semantic
+equivalence of propositions rather than surface-form similarity of
+text.  The pair of partial injective functions
+$(\phi_K, \phi_\ell^{(k)})$ would generalize to a pair of
+concept-attachment functions that assign each Markdown span to the
+concept(s) it evidences, with a containment analog that says a
+child span's concept-set is contained in its parent's.  The
+technical obstacles are substantive: concept identity is not
+crisp the way AST indices are, so the injectivity requirement
+relaxes to a tolerance over equivalence classes; and the candidate
+space is open-ended, so the block-level enumeration strategy of
+\cref{sec:block} does not transfer verbatim.  Prior work on
+entity linking, claim extraction, and knowledge-graph construction
+supplies the individual primitives, but composing them behind a
+\texttt{ppx}-style typed interface that preserves provenance across
+the document--information--concept stack is, as far as we know, an
+open problem.
+
+\paragraph{Agentic consumption and evaluation.}
+The other direction the agentic framing of \cref{sec:intro}
+invites is building on top of \texttt{ppx} rather than underneath
+it.  Three classes of agent workflow are immediate consumers of the
+alignment artifact.  The first is \emph{citation-constrained
+      retrieval-augmented generation}: an agent that answers a
+question must return, along with its answer, the layout-node span
+that justifies each claim, and must refuse to answer when no span
+scores above a confidence threshold.  The second is
+\emph{document-grounded question answering} with span-level
+anchors: a reader-style agent that highlights the precise region
+of a page image that supports each answer, using \texttt{ppx}'s
+mapping to translate from Markdown-space reasoning back to
+page-space display.  The third is \emph{provenance-preserving
+      summarization}: condensing a document while attaching, to each
+sentence of the summary, the visual-token set it distilled.
+All three workflows share a common need that the current
+literature does not systematically evaluate: a benchmark for
+\emph{how well an agent uses provenance}, not just whether its
+final answer is correct.  Designing such a benchmark --- with
+metrics for span-level citation accuracy, refusal calibration, and
+faithfulness of highlighted regions to claimed evidence --- is
+itself a research direction that \texttt{ppx} is a pre-requisite
+for, and we see it as the most direct way the work of this thesis
+feeds back into the agentic knowledge-distillation program it was
+motivated by.
+
+Taken together, these directions split into two groups.  The first
+five sharpen the document $\leftrightarrow$ information rung of the
+agentic ladder without re-architecting the pipeline, and all rest
+on the typed boundaries that \cref{sec:impl} already exposes ---
+they are targeted upgrades that the existing scaffold is designed
+to absorb.  The last two, concept-space alignment and agentic
+consumption, climb off that rung onto new ones and open research
+programs rather than closing them: they are the directions in
+which the foundation this thesis provides becomes a prerequisite
+for work rather than a replacement for it.  In that sense the
 contributions of this thesis are intended less as a final system
 than as a scaffold: a formal model, a benchmark that identifies
 where the scaffold bends, and an implementation designed to absorb
-targeted upgrades at the points the benchmark shows matter most.
+targeted upgrades and to carry new rungs above it.
 The navigation mechanism between documents and information that
 \cref{sec:intro} posited as the weakest rung of the agentic
 knowledge-distillation ladder is, we hope, one step sturdier for it.
@@ -2297,7 +2358,7 @@ below is the full-resolution screenshot.
             Left panel: original source PDF with hovered visual token
             highlighted.  Right panel: raw OCR-generated Markdown
             with the aligned span selected.  The collapsed-table
-            artefacts in the Markdown panel are a known OCR limitation;
+            artifacts in the Markdown panel are a known OCR limitation;
             the alignment still identifies the correct region of the
             page image.  Linked from \cref{fig:viewer-thumbs}.}
       \label{fig:viewer-clip-full}
