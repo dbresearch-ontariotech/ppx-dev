@@ -11,11 +11,11 @@ from ppx_align.core.md import get_content
 
 @cache
 def get_model(name="all-MiniLM-L6-v2") -> SentenceTransformer:
-    return SentenceTransformer(name)
+    return SentenceTransformer(name, device="cuda")
 
 def get_embeddings(texts: list[str]) -> np.ndarray:
     model = get_model()
-    return model.encode(texts)
+    return model.encode(texts, batch_size=256, convert_to_numpy=True)
 
 def get_doc_ast_node_embeddings(doc: ParsedDocument):
     texts = ["".join(doc.lines[node.map[0]:node.map[1]]) for node in doc.ast_nodes] # type: ignore
