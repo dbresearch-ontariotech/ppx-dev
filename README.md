@@ -1,5 +1,8 @@
 # ppx-dev
 
+![PPX Explorer Demo](./assets/ppx-document-viewer.gif)
+_Hovering over a visual token automatically highlights the corresponding markdown span, bridging the visual and semantic gap._
+
 Document analysis pipeline: OCR a PDF, build semantic alignments between the visual layout and the markdown AST, and explore the results in an interactive viewer.
 
 📄 **[Read the Full Manuscript Here](https://dbresearch-ontariotech.github.io/ppx-paper/)**
@@ -9,11 +12,6 @@ Document analysis pipeline: OCR a PDF, build semantic alignments between the vis
 Navigating the boundaries between vast document spaces—textbooks, papers, and articles—and abstract concepts represents the grand challenge of agentic knowledge distillation. To help humanity learn faster, AI agents need specialized tools to traverse these layers. A critical missing link is the exact alignment between raw information (source text) and structured text (Markdown), which is essential for agents to translate raw data into actionable concepts and abstractions.
 
 This thesis tackles this specific bottleneck by focusing on the navigation mechanism between documents and information. I introduce the Parsed Page eXplorer, a foundational tool that facilitates agentic learning through strict alignment between source text and Markdown. Establishing this foundation with semantic provenance empowers AI agents to seamlessly bridge the gap from documents to accessible information. Ultimately, this mechanism provides the foundation for highly efficient, agent-driven human knowledge distillation.
-
-## Usage Scenario
-
-![PPX Explorer Demo](./assets/ppx-document-viewer.gif)
-_Hovering over a visual token automatically highlights the corresponding markdown span, bridging the visual and semantic gap._
 
 ## Pipeline Architecture
 
