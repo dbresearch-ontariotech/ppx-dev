@@ -119,6 +119,12 @@ def _parse_labels(spec: str) -> set[str]:
     return {p.strip() for p in spec.split(",") if p.strip()}
 
 
+def _format_noise_list(noise_list: list[str], max_inline: int = 8) -> str:
+    if len(noise_list) <= max_inline:
+        return f"noise levels: {', '.join(noise_list)}"
+    return f"{len(noise_list)} noise levels ({noise_list[0]}–{noise_list[-1]})"
+
+
 def _noise_tag(value: float | None) -> str | None:
     if value is None:
         return None
@@ -243,8 +249,7 @@ def benchmark_cmd(
 
     bench_block = pd.concat(all_blocks, ignore_index=True)
     bench_line = pd.concat(all_lines, ignore_index=True)
-    doc_names = [d.name for d in doc_dirs]
-    subtitle = f"docs: {', '.join(doc_names)}" if len(doc_names) <= 6 else f"{len(doc_names)} documents"
+    subtitle = f"{len(doc_dirs)} docs"
     if noise_tag:
         subtitle = f"noise={noise_tag} | {subtitle}"
 
@@ -431,7 +436,7 @@ def noise_diagrams_cmd(
         raise typer.Exit(1)
 
     out = path / "noise_diagrams"
-    subtitle = f"noise levels: {', '.join(noise_tags)}"
+    subtitle = _format_noise_list(noise_tags)
     save_line_noise_diagrams(line_df, out, title_prefix=path.name, subtitle=subtitle, labels=label_filter)
     typer.echo(f"Saved noise diagrams to {out}")
 
@@ -494,7 +499,7 @@ def noise_benchmark_cmd(
             if line_df is None:
                 progress.advance(task)
                 continue
-            doc_subtitle = f"noise levels: {', '.join(sorted(line_df['noise'].unique(), key=float))}"
+            doc_subtitle = _format_noise_list(sorted(line_df["noise"].unique(), key=float))
             save_line_noise_diagrams(line_df, doc_dir / "noise_diagrams", title_prefix=doc_dir.name, subtitle=doc_subtitle, labels=label_filter)
             all_dfs.append(line_df.assign(document=doc_dir.name))
             progress.advance(task)
@@ -505,12 +510,8 @@ def noise_benchmark_cmd(
         raise typer.Exit(1)
 
     bench_df = pd.concat(all_dfs, ignore_index=True)
-    doc_names = [d.name for d in doc_dirs]
-    subtitle_parts = [
-        f"docs: {', '.join(doc_names)}" if len(doc_names) <= 6 else f"{len(doc_names)} documents",
-        f"noise levels: {', '.join(sorted(bench_df['noise'].unique(), key=float))}",
-    ]
-    subtitle = " | ".join(subtitle_parts)
+    noise_list = sorted(bench_df["noise"].unique(), key=float)
+    subtitle = f"{bench_df['document'].nunique()} docs | {_format_noise_list(noise_list)}"
 
     out = output_dir / NOISE_BENCHMARK_DIR_NAME
     save_line_noise_diagrams(bench_df, out, title_prefix="benchmark (noise)", subtitle=subtitle, labels=label_filter)
@@ -622,7 +623,7 @@ def precision_recall_cmd(
         raise typer.Exit(1)
 
     compared_tags = sorted([t for t in noise_tags if t != "0"], key=float)
-    subtitle = f"gold: 0 | noise levels: {', '.join(compared_tags)}"
+    subtitle = f"gold: 0 | {_format_noise_list(compared_tags)}"
     out = path / "precision_recall"
     save_precision_recall_diagrams(pr_df, out, title_prefix=path.name, subtitle=subtitle)
     typer.echo(f"Saved precision/recall diagrams to {out}")
@@ -668,7 +669,7 @@ def precision_recall_benchmark_cmd(
             if pr_df is None or pr_df.empty:
                 progress.advance(task)
                 continue
-            doc_subtitle = f"gold: 0 | noise levels: {', '.join(sorted(pr_df['noise_level'].unique(), key=float))}"
+            doc_subtitle = f"gold: 0 | {_format_noise_list(sorted(pr_df['noise_level'].unique(), key=float))}"
             save_precision_recall_diagrams(pr_df, doc_dir / "precision_recall", title_prefix=doc_dir.name, subtitle=doc_subtitle)
             all_dfs.append(pr_df.assign(document=doc_dir.name))
             progress.advance(task)
@@ -679,13 +680,10 @@ def precision_recall_benchmark_cmd(
         raise typer.Exit(1)
 
     bench_df = pd.concat(all_dfs, ignore_index=True)
-    doc_names = [d.name for d in doc_dirs]
-    subtitle_parts = [
-        f"docs: {', '.join(doc_names)}" if len(doc_names) <= 6 else f"{len(doc_names)} documents",
-        f"noise levels: {', '.join(sorted(bench_df['noise_level'].unique(), key=float))}",
-    ]
+    noise_list = sorted(bench_df["noise_level"].unique(), key=float)
+    subtitle = f"{bench_df['document'].nunique()} docs | {_format_noise_list(noise_list)}"
     out = output_dir / "precision_recall_benchmark"
-    save_precision_recall_diagrams(bench_df, out, title_prefix="precision-recall benchmark", subtitle=" | ".join(subtitle_parts))
+    save_precision_recall_diagrams(bench_df, out, title_prefix="precision-recall benchmark", subtitle=subtitle)
     typer.echo(f"Saved precision/recall benchmark to {out}")
 
 

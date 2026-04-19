@@ -129,3 +129,62 @@ The client proxies all `/api/ppx/...` requests to the server on port 8000. If th
 - **Hover alignment**: hovering a layout token highlights the corresponding markdown span; the right panel scrolls to it automatically
 - **Raw source mode**: toggle **Raw** in the header to view the original markdown source instead of rendered HTML — enables text selection for reverse alignment
 - **Selection tracking**: selecting text in raw source mode displays the `ast_index:char_offset` span in the header
+
+---
+
+## Benchmarking
+
+Evaluate alignment quality and its robustness to character-level noise. Produces cross-document distributions, precision / recall / F1 against a gold alignment, and per-noise diagrams.
+
+```
+ppx-bench corrupt   →   ppx-align build --noise   →   ppx-bench benchmark
+```
+
+Each page needs `layout-tree.parquet` and `alignment.json` first — i.e. Steps 1–2 above must have run.
+
+### Quick start
+
+Run the full pipeline (OCR → align → corrupt → noisy align → benchmarks) across every PDF in `samples/en/`:
+
+```bash
+cd ppx-bench
+make install        # first time only
+make all
+```
+
+Round-robin across GPUs detected by `nvidia-smi`. Defaults: `NOISE=0.01,0.02,0.03,0.04,0.05,0.1,0.2`, `SEED=42`. Override per target, e.g. `make all NOISE=0.005,0.05 SEED=7`.
+
+### Manual
+
+Inject synthetic character noise into aligned markdown spans:
+
+```bash
+uv run ppx-bench corrupt ../output/mydoc -n 0.01,0.05 --seed 42
+```
+
+Writes `markdown_<level>.md` to each page directory. Noise levels accept fractions (`0.05`) or percentages (`5`).
+
+Build alignments against the corrupted markdown:
+
+```bash
+uv run ppx-align build ../output/mydoc --noise 0.01,0.05
+```
+
+Writes `alignment_<level>.json` per page.
+
+Generate the benchmark reports:
+
+```bash
+uv run ppx-bench benchmark ../output                    # cross-document, uncorrupted
+uv run ppx-bench noise-benchmark ../output              # line-score distributions per noise level
+uv run ppx-bench precision-recall-benchmark ../output   # gold-vs-noise precision / recall / F1 / block error
+uv run ppx-bench summary ../output                      # text summary of all three
+```
+
+Outputs:
+
+- Per document: `output/<doc>/diagrams/`, `output/<doc>/noise_diagrams/`, `output/<doc>/precision_recall/`
+- Cross document: `output/benchmark/`, `output/noise_benchmark/`, `output/precision_recall_benchmark/`
+
+Each directory contains `.parquet` data files plus PNG plots.
+

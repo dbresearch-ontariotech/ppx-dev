@@ -1,64 +1,3 @@
-"""
-
-
-What do we want?
-
-We currently have:
-per document, page
-- alignment: list of match(visual_token, markdown_span, score) in alignment.json
-- block.parquet, line.parquet, word.parquet, also formula.parquet
-  => we can get block.content, line.content, but also we know which line contains formula by overlapping with formula visual tokens.
-
-Metrics for quality:
-Per document and page:
-- score distribution/histogram for blocks
-- score distribution for lines, *missing alignment should count as score 0*
-- overlay the score distribution of multiple pages
-- overlap the score distribution of lines containing math vs no math.
-- overlap the score distribution of lines belonging to different block label
-
-We can also assess the quality by the mean and standard deviation of the score distribution of lines, call this y=mean-score.  
-This allows us to compare the end-to-end performance of different scenarios:
-
-- levels of noise to the markdown source (change x% characters at random position to another random character).
-  x = 5%, 10%, 20%, 30%, ...
-  plot the noise level vs y.
-
-- Use 0% noise as gold standard, and compare the *CHANGE* in alignment markdown span.
-  for line_7, the span_true = (a0:i0, b0:j0).
-  but if we have noise level = 30%.  span_noise = (a1:i1, b1:j1)
-  => if blocks are different => block alignment error => (noise_level, line_id, 0, 0)
-  => if (i0,j0) != (i1,j1) => precision = (i0,j0) intersect (i1,j1) / (i1,j1), recall = (i0,j0) intersect (i1,j1) / (i0, j0)
-  => row (noise_level, line_id, precision, recall)
-
-The noise experiment:
-- create markdown with x% noise, save as markdown_<noise_level>.md
-  `uv run ppx-bench corrupt --page-path ../output/resnet/0 --noise-level 5,10,20,30,40`
-
-- perform alignment using the `uv run ppx-align build --page-path ../output/resnet/0 --markdown ../output/resnet/0/markdown/noise_level.md --save ../output/resnet/0/alignment_noise_level.json
-
-- [optional] multi-lingual alignment: plot EN/CN/FR/ etc.  What about the mean-score for each language?
-
-Milestones
-
-[Benchmark]
-- write the code for ppx-bench to analyze metric qualities (saved as pandas dataframe .parquet)
-- generate plots for the metric qualities
-- write code for ppx-bench corrupt
-- patch up ppx-align for corrupted markdown
-- write code for ppx-bench to analyze the noise_level prec/recall (.parquet)
-- plot the noise level effects
-
-[Demo]
-- Reverse alignment
-- Visual highlight of low score matches
-
-[Presentation]
-- Recorded video of the interface
-- Google slides
-
-"""
-
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -79,11 +18,19 @@ def _aggregate_mean_std(df: pd.DataFrame, value_col: str) -> tuple[float, float,
     return float(df[value_col].mean()), float(df[value_col].std(ddof=0)), "per-line"
 
 
-def _plot_combined(summary_df: pd.DataFrame, title: str, subtitle: str | None = None) -> None:
+def _plot_combined(summary_df: pd.DataFrame, title: str, subtitle: str | None = None, top_n_labels: int = 8) -> None:
     import numpy as np
     from scipy.stats import gaussian_kde
 
-    groups = sorted(summary_df.groupby("block_label"), key=lambda kv: -len(kv[1]))
+    all_groups = sorted(summary_df.groupby("block_label"), key=lambda kv: -len(kv[1]))
+    if len(all_groups) > top_n_labels:
+        top = all_groups[:top_n_labels]
+        rest = all_groups[top_n_labels:]
+        rest_rows = pd.concat([g for _, g in rest], ignore_index=True)
+        groups = top + [(f"other ({len(rest)} labels)", rest_rows)]
+    else:
+        groups = all_groups
+
     data = [group["score"].values for _, group in groups]
     counts = [f"{label} ({len(group)})" for label, group in groups]
     bins = 20
@@ -101,7 +48,16 @@ def _plot_combined(summary_df: pd.DataFrame, title: str, subtitle: str | None = 
         ax.plot(xs, kde(xs) * bin_width * 100.0, color="black", linewidth=1.5, label="density")
 
     mean_score, std_score, std_level = _aggregate_mean_std(summary_df, "score")
-    ax.axvline(mean_score, color="red", linestyle="--", linewidth=1, label=f"μ = {mean_score:.2f}, σ = {std_score:.2f} ({std_level})")
+    ax.axvline(mean_score, color="black", linestyle="--", linewidth=2.0, label=f"μ = {mean_score:.2f}, σ = {std_score:.2f} ({std_level})", zorder=5)
+    ymax = ax.get_ylim()[1]
+    ax.annotate(
+        f"μ = {mean_score:.2f}",
+        xy=(mean_score, ymax * 0.92),
+        xytext=(6, 0), textcoords="offset points",
+        fontsize=10, fontweight="bold",
+        bbox=dict(boxstyle="round,pad=0.25", facecolor="white", edgecolor="black", linewidth=0.8),
+        zorder=6,
+    )
 
     full_title = f"{title}\n{subtitle}" if subtitle else title
     ax.set_xlabel("Alignment score")
@@ -110,7 +66,7 @@ def _plot_combined(summary_df: pd.DataFrame, title: str, subtitle: str | None = 
     ax.set_xlim(0, 1)
     ax.grid(axis="y", alpha=0.3)
     ax.set_axisbelow(True)
-    ax.legend(title="Block label (n)", bbox_to_anchor=(1.02, 1), loc="upper left", frameon=False)
+    ax.legend(title="Block label (n)", bbox_to_anchor=(1.02, 1), loc="upper left", frameon=False, fontsize=9)
     fig.tight_layout()
 
 
@@ -140,11 +96,15 @@ def _plot_overlap(
     scale = bin_width * 100.0 if y_mode == "percent" else 1.0
     for i, g in enumerate(groups):
         scores = summary_df.loc[summary_df[group_col] == g, score_col].values
-        if len(scores) < 2 or np.ptp(scores) == 0:
+        if len(scores) == 0:
             continue
-        kde = gaussian_kde(scores)
         mean, std = float(np.mean(scores)), float(np.std(scores))
-        ax.plot(xs, kde(xs) * scale, color=cmap(i), linewidth=1.5, label=f"{group_col} {g} (n={len(scores)}, μ={mean:.2f}, σ={std:.2f})")
+        label = f"{group_col} {g} (n={len(scores)}, μ={mean:.2f}, σ={std:.2f})"
+        if len(scores) >= 2 and np.ptp(scores) > 0:
+            kde = gaussian_kde(scores)
+            ax.plot(xs, kde(xs) * scale, color=cmap(i), linewidth=1.5, label=label)
+        else:
+            ax.axvline(mean, color=cmap(i), linewidth=1.5, linestyle=":", label=label)
 
     full_title = f"{title}\n{subtitle}" if subtitle else title
     ax.set_xlabel(x_label)
@@ -233,7 +193,7 @@ def _plot_pr_mean_vs_noise(pr_df: pd.DataFrame, title: str, subtitle: str | None
     if style == "bar":
         for ax in axes[1]:
             ax.set_xticks(x_pos)
-            ax.set_xticklabels(x_labels)
+            ax.set_xticklabels(x_labels, rotation=45, ha="right")
     for ax in axes[1]:
         ax.set_xlabel("Noise level")
     for ax in axes[:, 0]:
