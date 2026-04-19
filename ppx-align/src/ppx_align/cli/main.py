@@ -56,6 +56,7 @@ def build_cmd(
     output: Path = typer.Argument(..., help="Document output directory containing page subdirectories"),
     page: Optional[int] = typer.Option(None, "--page", help="Process only this page number"),
     blocks_only: bool = typer.Option(False, "--blocks-only", help="Align blocks only, skip line alignment"),
+    tokenizer_name: str = typer.Option("treebank", "--tokenizer", help="Tokenizer to use: 'treebank' or a pretrained model name (e.g. google-bert/bert-base-chinese)"),
 ):
     """Build DocAlignment for all pages, or a single page with --page."""
     from rich.progress import Progress, BarColumn, TaskProgressColumn, TimeElapsedColumn, TextColumn
@@ -63,6 +64,8 @@ def build_cmd(
     from ppx_align.core.layout import build_layout_tree
     from ppx_align.core.md import build_parsed_doc
     from ppx_align.core.align import align_tree
+    from ppx_align.core.tokenizers import TreebankTokenizer, PretrainedAutoTokenizer
+    tokenizer = TreebankTokenizer() if tokenizer_name == "treebank" else PretrainedAutoTokenizer(tokenizer_name)
 
     all_pages = sorted((d for d in output.iterdir() if d.is_dir() and _is_page_dir(d)), key=lambda d: int(d.name))
     if not all_pages:
@@ -89,7 +92,7 @@ def build_cmd(
             progress.update(task, description=f"Page {page_dir.name}")
             vl, md_doc = load(str(page_dir))
             tree = build_layout_tree(vl)
-            doc = build_parsed_doc(md_doc)
+            doc = build_parsed_doc(md_doc, tokenizer=tokenizer)
             alignment = align_tree(tree, doc, blocks_only=blocks_only)
             dest = page_dir / "alignment.json"
             dest.write_text(alignment.model_dump_json(indent=2))

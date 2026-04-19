@@ -34,7 +34,7 @@
 		clearTimer = setTimeout(() => {
 			appState.activatedVisualTokens.delete(id);
 			clearTimer = null;
-		}, 80);
+		}, 120);
 	}
 
 	$effect(() => {
