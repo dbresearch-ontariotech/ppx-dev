@@ -1,15 +1,12 @@
 from __future__ import annotations
 from markdown_it import MarkdownIt
 from markdown_it.tree import SyntaxTreeNode
-import nltk
-from nltk.tokenize import TreebankWordTokenizer
 
-nltk.download("punkt")
-nltk.download("punkt_tab")
-
+from ppx_align.core.tokenizers import PPXTokenizer, TreebankTokenizer
 from ppx_align.core.types import BlockAlignmentTarget, CharAlignmentTarget, ParsedDocument, MarkdownDocument
 
-def build_parsed_doc(doc: MarkdownDocument) -> ParsedDocument:
+
+def build_parsed_doc(doc: MarkdownDocument, tokenizer: PPXTokenizer | None = None) -> ParsedDocument:
     parser = MarkdownIt('gfm-like')
     tokens = parser.parse(doc.markdown)
     lines = doc.markdown.splitlines(keepends=True)
@@ -25,12 +22,13 @@ def build_parsed_doc(doc: MarkdownDocument) -> ParsedDocument:
         (spans[node.map[0]][0], spans[node.map[1] - 1][1]) for node in ast_nodes  # type: ignore
     ]
 
-    tokenizer = TreebankWordTokenizer()
+    if tokenizer is None:
+        tokenizer = TreebankTokenizer()
     ast_word_spans = []
     for ast_span in ast_spans:
-        word_spans = list(tokenizer.span_tokenize(doc.markdown[ast_span[0]:ast_span[1]]))
+        word_spans = tokenizer.tokenize(doc.markdown[ast_span[0]:ast_span[1]])
         # word span is in character offset relative to the start of the ast node
-        ast_word_spans.append([(a, b) for (a, b) in word_spans])
+        ast_word_spans.append(word_spans)
 
     return ParsedDocument(
         markdown=doc.markdown,
@@ -58,11 +56,11 @@ def get_content(
         return doc.markdown[start:end]
     elif block_alignment_target is not None:
         start = doc.ast_spans[block_alignment_target.ast_start][0]
-        end = doc.ast_spans[block_alignment_target.ast_end - 1][1]
+        end = doc.ast_spans[block_alignment_target.ast_end][1]  # ast_end inclusive
         return doc.markdown[start:end]
     elif char_alignment_target is not None:
         abs_start = doc.ast_spans[char_alignment_target.ast_index_start][0] + char_alignment_target.char_start
-        abs_end = doc.ast_spans[char_alignment_target.ast_index_end][0] + char_alignment_target.char_end
+        abs_end = doc.ast_spans[char_alignment_target.ast_index_end][0] + char_alignment_target.char_end + 1  # char_end inclusive
         return doc.markdown[abs_start:abs_end]
     else:
         raise ValueError("Exactly one keyword argument must be provided")

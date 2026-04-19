@@ -5,7 +5,10 @@ install:
 
 
 build:
+	uv run ppx-align build ../output/clip
 	uv run ppx-align build ../output/resnet
+	uv run ppx-align build ../output/rl
+	uv run ppx-align build ../output/paddlepaddle
 
 serve:
-	uv run ppx-align serve ../output --slow
+	uv run ppx-align serve ../output

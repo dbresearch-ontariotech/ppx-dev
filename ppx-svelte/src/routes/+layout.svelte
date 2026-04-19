@@ -63,7 +63,7 @@
 			ast_index_start: parseInt(startEl.getAttribute('data-ast-index')!),
 			char_start:      prefixLen(startEl, range.startContainer, range.startOffset),
 			ast_index_end:   parseInt(endEl.getAttribute('data-ast-index')!),
-			char_end:        prefixLen(endEl,   range.endContainer,   range.endOffset),
+			char_end:        prefixLen(endEl,   range.endContainer,   range.endOffset) - 1,
 		};
 	}
 </script>
@@ -196,7 +196,15 @@
 							>
 								<Checkbox
 									checked={appState.showVisualTokens.get(level) ?? false}
-									onCheckedChange={(v) => appState.showVisualTokens.set(level, !!v)}
+									onCheckedChange={(v) => {
+									if (v) {
+										for (const l of ['block', 'line', 'word'] as TokenLevel[]) {
+											appState.showVisualTokens.set(l, l === level);
+										}
+									} else {
+										appState.showVisualTokens.set(level, false);
+									}
+								}}
 								/>
 								<span class="text-sm capitalize">{level}</span>
 							</label>

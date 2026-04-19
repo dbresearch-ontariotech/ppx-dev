@@ -77,6 +77,7 @@ def build_cmd(
     save: Optional[Path] = typer.Option(None, "--save", help="Override alignment output path (single page only)"),
     noise: Optional[str] = typer.Option(None, "--noise", help="Comma-separated noise levels (e.g. '0.01,0.02,0.05' or '1,2,5'). Uses markdown_{level}.md and saves alignment_{level}.json per page."),
     gpu: Optional[int] = typer.Option(None, "--gpu", help="CUDA device index to use (0..N-1). Defaults to GPU 0."),
+    tokenizer_name: str = typer.Option("treebank", "--tokenizer", help="Tokenizer to use: 'treebank' or a pretrained model name (e.g. google-bert/bert-base-chinese)"),
 ):
     """Build DocAlignment for all pages, or a single page with --page."""
     if gpu is not None:
@@ -88,6 +89,8 @@ def build_cmd(
     from ppx_align.core.layout import build_layout_tree
     from ppx_align.core.md import build_parsed_doc
     from ppx_align.core.align import align_tree
+    from ppx_align.core.tokenizers import TreebankTokenizer, PretrainedAutoTokenizer
+    tokenizer = TreebankTokenizer() if tokenizer_name == "treebank" else PretrainedAutoTokenizer(tokenizer_name)
 
     if noise is not None and (markdown is not None or save is not None):
         typer.echo("--noise cannot be combined with --markdown or --save", err=True)
@@ -141,7 +144,7 @@ def build_cmd(
                 if md_src is not None:
                     md_doc.markdown = Path(md_src).read_text(encoding="utf-8")
                 tree = build_layout_tree(vl)
-                doc = build_parsed_doc(md_doc)
+                doc = build_parsed_doc(md_doc, tokenizer=tokenizer)
                 alignment = align_tree(tree, doc, blocks_only=blocks_only)
                 dest.write_text(alignment.model_dump_json(indent=2))
                 scores = (

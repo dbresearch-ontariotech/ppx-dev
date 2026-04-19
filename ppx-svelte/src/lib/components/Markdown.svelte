@@ -191,7 +191,7 @@
 
 	.raw-source {
 		font-family: ui-monospace, monospace;
-		font-size: 0.8rem;
+		font-size: 1.0rem;
 		line-height: 1.6;
 		white-space: pre-wrap;
 		word-break: break-word;

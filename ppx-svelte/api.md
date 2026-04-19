@@ -225,7 +225,7 @@ Return the pre-computed alignment between visual layout tokens and markdown AST 
 | Field       | Type    | Description                                                  |
 |-------------|---------|--------------------------------------------------------------|
 | `ast_start` | integer | Index of the first matched AST node (inclusive)              |
-| `ast_end`   | integer | Index of the last matched AST node (exclusive)               |
+| `ast_end`   | integer | Index of the last matched AST node (inclusive)               |
 | `score`     | float   | Cosine similarity score                                      |
 
 **Fields — `line_alignments`**
@@ -234,7 +234,7 @@ Return the pre-computed alignment between visual layout tokens and markdown AST 
 | `ast_index_start` | integer | AST node index where the matched char span starts                |
 | `char_start`      | integer | Char offset within `ast_index_start` node (relative to node)    |
 | `ast_index_end`   | integer | AST node index where the matched char span ends                  |
-| `char_end`        | integer | Char offset within `ast_index_end` node (relative to node)      |
+| `char_end`        | integer | Char offset within `ast_index_end` node (relative to node, inclusive) |
 | `score`           | float   | Cosine similarity score                                          |
 
 **Errors**

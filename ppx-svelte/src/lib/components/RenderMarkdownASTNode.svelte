@@ -33,7 +33,7 @@
 		let cursor = 0;
 		for (const { start, end } of merged) {
 			result += src.slice(cursor, start);
-			result += `<span data-line-highlight style="background-color:${color}33;border-radius:2px;padding:0 0.1em">${src.slice(start, end)}</span>`;
+			result += `<span data-line-highlight style="background-color:${color}80;border-radius:2px;padding:0 0.1em">${src.slice(start, end)}</span>`;
 			cursor = end;
 		}
 		result += src.slice(cursor);
