@@ -84,8 +84,9 @@
 			<div
 				data-ast-index={astNode.ast_index}
 				data-line-highlight={highlighted || undefined}
-				style:border-left={highlighted ? `3px solid ${TOKEN_LEVEL_COLORS['block']}` : '3px solid transparent'}
-				style:padding-left={highlighted ? '0.5rem' : undefined}
+				style:border={highlighted ? `3px solid ${TOKEN_LEVEL_COLORS['block']}` : undefined}
+				style:border-radius={highlighted ? '4px' : undefined}
+				style:margin-bottom={highlighted ? '0.5rem' : undefined}
 			>
 				<RenderMarkdownASTNode
 					{astNode}
