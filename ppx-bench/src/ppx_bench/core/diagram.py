@@ -67,6 +67,18 @@ from ppx_align.core.align import BlockAlignmentTarget
 from ppx_align.core.types import CharAlignmentTarget
 
 
+def _aggregate_mean_std(df: pd.DataFrame, value_col: str) -> tuple[float, float, str]:
+    """Return (mean, std, level) where mean is the mean of per-group means and std is across groups.
+
+    Prefers 'document' > 'page' > per-row fallback. Returns level label for display.
+    """
+    for level in ("document", "page"):
+        if level in df.columns and df[level].nunique() > 1:
+            group_means = df.groupby(level)[value_col].mean()
+            return float(group_means.mean()), float(group_means.std(ddof=0)), f"cross-{level}"
+    return float(df[value_col].mean()), float(df[value_col].std(ddof=0)), "per-line"
+
+
 def _plot_combined(summary_df: pd.DataFrame, title: str, subtitle: str | None = None) -> None:
     import numpy as np
     from scipy.stats import gaussian_kde
@@ -88,8 +100,8 @@ def _plot_combined(summary_df: pd.DataFrame, title: str, subtitle: str | None = 
         bin_width = 1.0 / bins
         ax.plot(xs, kde(xs) * bin_width * 100.0, color="black", linewidth=1.5, label="density")
 
-    mean_score = summary_df["score"].mean()
-    ax.axvline(mean_score, color="red", linestyle="--", linewidth=1, label=f"mean = {mean_score:.2f}")
+    mean_score, std_score, std_level = _aggregate_mean_std(summary_df, "score")
+    ax.axvline(mean_score, color="red", linestyle="--", linewidth=1, label=f"μ = {mean_score:.2f}, σ = {std_score:.2f} ({std_level})")
 
     full_title = f"{title}\n{subtitle}" if subtitle else title
     ax.set_xlabel("Alignment score")
@@ -107,6 +119,8 @@ def _plot_overlap(
     title: str,
     subtitle: str | None = None,
     group_col: str = "page",
+    score_col: str = "score",
+    x_label: str = "Alignment score",
     y_mode: str = "density",
     bin_width: float = 0.05,
 ) -> None:
@@ -125,21 +139,136 @@ def _plot_overlap(
     cmap = plt.get_cmap("viridis", max(len(groups), 2))
     scale = bin_width * 100.0 if y_mode == "percent" else 1.0
     for i, g in enumerate(groups):
-        scores = summary_df.loc[summary_df[group_col] == g, "score"].values
+        scores = summary_df.loc[summary_df[group_col] == g, score_col].values
         if len(scores) < 2 or np.ptp(scores) == 0:
             continue
         kde = gaussian_kde(scores)
-        ax.plot(xs, kde(xs) * scale, color=cmap(i), linewidth=1.5, label=f"{group_col} {g} (n={len(scores)})")
+        mean, std = float(np.mean(scores)), float(np.std(scores))
+        ax.plot(xs, kde(xs) * scale, color=cmap(i), linewidth=1.5, label=f"{group_col} {g} (n={len(scores)}, μ={mean:.2f}, σ={std:.2f})")
 
     full_title = f"{title}\n{subtitle}" if subtitle else title
-    ax.set_xlabel("Alignment score")
-    ax.set_ylabel(f"% of lines (per {bin_width:g} score interval)" if y_mode == "percent" else "Density")
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(f"% of lines (per {bin_width:g} interval)" if y_mode == "percent" else "Density")
     ax.set_title(full_title)
     ax.set_xlim(0, 1)
     ax.grid(axis="y", alpha=0.3)
     ax.set_axisbelow(True)
     ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", frameon=False)
     fig.tight_layout()
+
+
+def _plot_pr_mean_vs_noise(pr_df: pd.DataFrame, title: str, subtitle: str | None = None, style: str = "bar") -> None:
+    import numpy as np
+
+    pr_df = pr_df.copy()
+    denom = pr_df["precision"] + pr_df["recall"]
+    pr_df["f1"] = np.where(denom > 0, 2 * pr_df["precision"] * pr_df["recall"] / denom.replace(0, 1), 0.0)
+
+    group_level = next((lvl for lvl in ("document", "page") if lvl in pr_df.columns and pr_df[lvl].nunique() > 1), None)
+
+    summary = pr_df.groupby("noise_level").agg(
+        precision_mean=("precision", "mean"),
+        recall_mean=("recall", "mean"),
+        f1_mean=("f1", "mean"),
+        block_error_rate=("is_block_error", "mean"),
+        n=("line_id", "count"),
+    ).reset_index()
+    summary["noise_num"] = summary["noise_level"].astype(float)
+    summary = summary.sort_values("noise_num")
+
+    if group_level is not None:
+        per_group = pr_df.groupby(["noise_level", group_level]).agg(
+            precision=("precision", "mean"),
+            recall=("recall", "mean"),
+            f1=("f1", "mean"),
+            block_error=("is_block_error", "mean"),
+        ).reset_index()
+        cross_std = per_group.groupby("noise_level").agg(
+            precision_std=("precision", lambda s: s.std(ddof=0)),
+            recall_std=("recall", lambda s: s.std(ddof=0)),
+            f1_std=("f1", lambda s: s.std(ddof=0)),
+            block_error_std=("block_error", lambda s: s.std(ddof=0)),
+        ).reset_index()
+        summary = summary.merge(cross_std, on="noise_level", how="left")
+
+    x_labels = [f"{v:g}" for v in summary["noise_num"].values]
+    x_pos = np.arange(len(x_labels))
+    x_num = summary["noise_num"].values
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True)
+    full_title = f"{title}\n{subtitle}" if subtitle else title
+    fig.suptitle(full_title)
+
+    panels = [
+        (axes[0, 0], "precision_mean", "precision_std", "Precision", "#1f77b4", "o"),
+        (axes[0, 1], "recall_mean", "recall_std", "Recall", "#2ca02c", "s"),
+        (axes[1, 0], "f1_mean", "f1_std", "F1", "#9467bd", "D"),
+        (axes[1, 1], "block_error_rate", "block_error_std", "Block error rate", "#d62728", "x"),
+    ]
+
+    for ax, mean_col, std_col, label, color, marker in panels:
+        y_mean = summary[mean_col].values
+        y_std = summary[std_col].fillna(0).values if (group_level is not None and std_col in summary.columns) else None
+        err_label = f"±σ (cross-{group_level})" if group_level is not None else None
+
+        if style == "bar":
+            ax.bar(
+                x_pos, y_mean,
+                yerr=y_std,
+                color=color, alpha=0.75, edgecolor=color, linewidth=1.2,
+                error_kw=dict(ecolor="black", capsize=3, elinewidth=1),
+                label=err_label,
+            )
+        else:  # line
+            if y_std is not None:
+                ax.fill_between(x_num, np.clip(y_mean - y_std, 0, 1), np.clip(y_mean + y_std, 0, 1), color=color, alpha=0.15, label=err_label)
+            ax.plot(x_num, y_mean, marker=marker, linewidth=1.8, color=color, label=f"{label} (mean)")
+
+        ax.set_title(label)
+        ax.set_ylim(0, 1.05)
+        ax.grid(axis="y" if style == "bar" else "both", alpha=0.3)
+        ax.set_axisbelow(True)
+        ax.legend(loc="best", frameon=False, fontsize=8)
+
+    if style == "bar":
+        for ax in axes[1]:
+            ax.set_xticks(x_pos)
+            ax.set_xticklabels(x_labels)
+    for ax in axes[1]:
+        ax.set_xlabel("Noise level")
+    for ax in axes[:, 0]:
+        ax.set_ylabel("Value (0–1)")
+
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+
+
+def save_precision_recall_diagrams(
+    pr_df: pd.DataFrame,
+    output_dir: Path,
+    title_prefix: str = "",
+    subtitle: str | None = None,
+) -> None:
+    """Precision/recall diagrams. pr_df must have columns: noise_level, line_id, precision, recall, is_block_error."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    pr_df.to_parquet(output_dir / "precision_recall.parquet", index=False)
+
+    prefix = f"{title_prefix} — " if title_prefix else ""
+
+    _plot_pr_mean_vs_noise(pr_df, f"{prefix}Precision / recall vs noise level", subtitle=subtitle, style="bar")
+    plt.savefig(output_dir / "pr_mean_vs_noise_bar.png", dpi=150)
+    plt.close()
+
+    _plot_pr_mean_vs_noise(pr_df, f"{prefix}Precision / recall vs noise level", subtitle=subtitle, style="line")
+    plt.savefig(output_dir / "pr_mean_vs_noise_line.png", dpi=150)
+    plt.close()
+
+    _plot_overlap(pr_df, f"{prefix}Precision distribution (per-noise)", subtitle=subtitle, group_col="noise_level", score_col="precision", x_label="Precision", y_mode="percent")
+    plt.savefig(output_dir / "precision_overlap.png", dpi=150)
+    plt.close()
+
+    _plot_overlap(pr_df, f"{prefix}Recall distribution (per-noise)", subtitle=subtitle, group_col="noise_level", score_col="recall", x_label="Recall", y_mode="percent")
+    plt.savefig(output_dir / "recall_overlap.png", dpi=150)
+    plt.close()
 
 
 def compute_block_scores(
@@ -249,10 +378,10 @@ def save_diagrams(
     plt.close()
 
     if overlap_by in block_df.columns and block_df[overlap_by].nunique() > 1:
-        _plot_overlap(block_plot, f"{prefix}Block score distribution (per-{overlap_by} overlap)", subtitle=full_subtitle, group_col=overlap_by)
+        _plot_overlap(block_plot, f"{prefix}Block score distribution (per-{overlap_by} overlap)", subtitle=full_subtitle, group_col=overlap_by, y_mode="percent")
         plt.savefig(output_dir / f"block_overlap{suffix}.png", dpi=150)
         plt.close()
 
-        _plot_overlap(line_plot, f"{prefix}Line score distribution (per-{overlap_by} overlap)", subtitle=full_subtitle, group_col=overlap_by)
+        _plot_overlap(line_plot, f"{prefix}Line score distribution (per-{overlap_by} overlap)", subtitle=full_subtitle, group_col=overlap_by, y_mode="percent")
         plt.savefig(output_dir / f"line_overlap{suffix}.png", dpi=150)
         plt.close()
