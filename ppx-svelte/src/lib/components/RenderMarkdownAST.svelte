@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { TOKEN_LEVEL_COLORS, type BlockAlignment, type LineAlignment, type MarkdownASTNode } from '$lib/appstate.svelte';
+	import { TOKEN_LEVEL_COLORS, type BlockAlignment, type LineAlignment, type MarkdownASTNode, type TokenLevel } from '$lib/appstate.svelte';
 	import RenderMarkdownASTNode from './RenderMarkdownASTNode.svelte';
 
 	type CharRange = { start: number; end: number };
@@ -11,9 +11,10 @@
 		baseurl: string;
 		activeAlignments?: Promise<BlockAlignment[]>;
 		activeLineAlignments?: Promise<LineAlignment[]>;
+		activeLevel?: TokenLevel | null;
 	};
 
-	let { ast, baseurl, activeAlignments, activeLineAlignments }: Props = $props();
+	let { ast, baseurl, activeAlignments, activeLineAlignments, activeLevel }: Props = $props();
 
 	let container: HTMLElement | undefined = $state();
 
@@ -34,7 +35,7 @@
 	function buildSegments(alignments: BlockAlignment[]): Segment[] {
 		const highlighted = new Set(
 			alignments.flatMap((ba) =>
-				Array.from({ length: ba.ast_end - ba.ast_start }, (_, i) => ba.ast_start + i)
+				Array.from({ length: ba.ast_end - ba.ast_start + 1 }, (_, i) => ba.ast_start + i)
 			)
 		);
 
@@ -51,6 +52,12 @@
 		return segments;
 	}
 
+	function isHighlightedByLine(lineAlignments: LineAlignment[], astIndex: number): boolean {
+		return lineAlignments.some(
+			(la) => astIndex >= la.ast_index_start && astIndex <= la.ast_index_end
+		);
+	}
+
 	function getCharRanges(lineAlignments: LineAlignment[], astNode: MarkdownASTNode): CharRange[] {
 		const i = astNode.ast_index;
 		const len = astNode.markdown.length;
@@ -60,7 +67,7 @@
 			if (i < la.ast_index_start || i > la.ast_index_end) continue;
 
 			const start = i === la.ast_index_start ? la.char_start : 0;
-			const end   = i === la.ast_index_end   ? la.char_end   : len;
+			const end   = i === la.ast_index_end   ? la.char_end + 1 : len;  // char_end inclusive → +1 for slice
 
 			if (start < end) ranges.push({ start, end });
 		}
@@ -71,16 +78,45 @@
 
 <div bind:this={container}>
 {#await Promise.all([activeAlignments ?? Promise.resolve([]), activeLineAlignments ?? Promise.resolve([])]) then [alignments, lineAlignments]}
-	{@const segments = buildSegments(alignments)}
-	{#each segments as segment (segment.nodes[0]?.ast_index)}
-		{#if segment.highlighted}
+	{#if activeLevel === 'line'}
+		{#each ast as astNode (astNode.ast_index)}
+			{@const highlighted = isHighlightedByLine(lineAlignments, astNode.ast_index)}
 			<div
-				data-highlighted
-				style:border="3px solid {TOKEN_LEVEL_COLORS['block']}"
-				style:border-radius="4px"
-				style:padding="0.25rem 0.5rem"
-				style:margin-bottom="0.5rem"
+				data-ast-index={astNode.ast_index}
+				data-line-highlight={highlighted || undefined}
+				style:border={highlighted ? `3px solid ${TOKEN_LEVEL_COLORS['block']}` : undefined}
+				style:border-radius={highlighted ? '4px' : undefined}
+				style:margin-bottom={highlighted ? '0.5rem' : undefined}
 			>
+				<RenderMarkdownASTNode
+					{astNode}
+					{baseurl}
+					charRanges={getCharRanges(lineAlignments, astNode)}
+				/>
+			</div>
+		{/each}
+	{:else}
+		{@const segments = buildSegments(alignments)}
+		{#each segments as segment (segment.nodes[0]?.ast_index)}
+			{#if segment.highlighted}
+				<div
+					data-highlighted
+					style:border="3px solid {TOKEN_LEVEL_COLORS['block']}"
+					style:border-radius="4px"
+					style:padding="0.25rem 0.5rem"
+					style:margin-bottom="0.5rem"
+				>
+					{#each segment.nodes as astNode (astNode.ast_index)}
+						<div data-ast-index={astNode.ast_index}>
+							<RenderMarkdownASTNode
+								{astNode}
+								{baseurl}
+								charRanges={getCharRanges(lineAlignments, astNode)}
+							/>
+						</div>
+					{/each}
+				</div>
+			{:else}
 				{#each segment.nodes as astNode (astNode.ast_index)}
 					<div data-ast-index={astNode.ast_index}>
 						<RenderMarkdownASTNode
@@ -90,18 +126,8 @@
 						/>
 					</div>
 				{/each}
-			</div>
-		{:else}
-			{#each segment.nodes as astNode (astNode.ast_index)}
-				<div data-ast-index={astNode.ast_index}>
-					<RenderMarkdownASTNode
-						{astNode}
-						{baseurl}
-						charRanges={getCharRanges(lineAlignments, astNode)}
-					/>
-				</div>
-			{/each}
-		{/if}
-	{/each}
+			{/if}
+		{/each}
+	{/if}
 {/await}
 </div>

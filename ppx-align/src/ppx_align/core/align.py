@@ -30,7 +30,7 @@ def get_doc_range_embeddings(doc: ParsedDocument):
             start = doc.ast_spans[i][0]
             end = doc.ast_spans[j-1][1]
             texts.append(doc.markdown[start:end])
-            rng.append((i,j))
+            rng.append((i, j-1))  # ast_end is inclusive
     return get_embeddings(texts), rng, texts
 
 def get_visual_token_embeddings(rows: pd.DataFrame):
@@ -92,7 +92,7 @@ def align_lines(
     # Collect word spans with their originating ast_node index
     ast_word_spans: list[tuple[int, int]] = []
     word_ast_indices: list[int] = []
-    for i in range(ast_rng[0], ast_rng[1]):
+    for i in range(ast_rng[0], ast_rng[1] + 1):  # ast_rng[1] is inclusive
         for span in doc.ast_word_spans[i]:
             ast_word_spans.append(span)
             word_ast_indices.append(i)
@@ -104,8 +104,8 @@ def align_lines(
         abs_start = doc.ast_spans[ast_idx_i][0] + ast_word_spans[i][0]
         for j in range(i+1, len(ast_word_spans) + 1):
             ast_idx_j = word_ast_indices[j-1]
-            end = ast_word_spans[j-1][1]
-            abs_end = doc.ast_spans[ast_idx_j][0] + end
+            end = ast_word_spans[j-1][1] - 1  # char_end is inclusive
+            abs_end = doc.ast_spans[ast_idx_j][0] + end + 1  # +1 for slice
             span_len = abs_end - abs_start
             if span_len > max_chars:
                 break
