@@ -62,15 +62,17 @@ Line counts exceed block counts for `text`, `table`, `reference`, `image`, `char
 
 Docs are fairly consistent (σ ≈ 0.07–0.08 across 6 docs) — the pipeline generalizes, no single doc dragging everything down. The per-document KDEs above sit on top of each other with a single shared peak near score=1.0; `rl` is the one visibly flatter curve.
 
-**Strong structural bimodality by block label:**
+**Strong structural bimodality by block label (line-level means):**
 
-| label group | mean | what it means |
+| label group | line mean | what it means |
 |---|---|---|
-| `text`, `paragraph_title`, `table`, `reference`, `figure_title`, `algorithm`, `abstract` | 0.95–1.00 | text-like content aligns near-perfectly |
-| `formula` / `formula_number` | 0.98 / 0.18 | formulas align; isolated formula numbers do not |
-| `chart`, `image` | 0.41–0.45 | non-textual OCR content has no semantic anchor in markdown |
-| `number`, `header`, `footer` | 0.02, 0.39, 0.02 | page numbers, running heads, footers — repetitive and low-signal for sentence embeddings |
+| `text`, `paragraph_title`, `table`, `reference`, `figure_title`, `algorithm`, `abstract` | 0.95–0.99 | text-like content aligns near-perfectly |
+| `formula` | 0.75 | block matches well (0.98 block mean) but char spans inside the formula only partially overlap markdown nodes |
+| `chart`, `image` | 0.45, 0.42 | non-textual OCR content has no semantic anchor in markdown |
+| `header` | 0.55 | running heads are repetitive across pages; some distinctive tokens keep individual lines alignable (block mean 0.39 — block confuses across pages, lines slightly better) |
+| `footer` | 0.02 | page numbers / short footers — low-signal for sentence embeddings |
 | `unknown` | 0.00 | 541 lines with no block label — structural gap in OCR output |
+| `formula_number`, `number` | — (n=1 each, trivial at line level; block means 0.18 / 0.02) | short numeric content fails at the block level; nearly no lines assigned |
 
 ![Line score distribution stacked by block label](../output/benchmark/line_combined.png)
 
@@ -84,12 +86,21 @@ The stacked histogram above makes the bimodality concrete: the mass at score=1.0
 
 | noise | mean line score | drop from baseline |
 |---|---|---|
-| 0.00 | 0.787 | — |
-| 0.01 | 0.750 | –5% |
-| 0.02 | 0.734 | –7% |
-| 0.04 | 0.690 | –12% |
-| 0.05 | 0.669 | –15% |
-| 0.20 | 0.469 | –40% |
+| 0.000 | 0.787 | — |
+| 0.005 | 0.792 | +0.6% |
+| 0.006 | 0.782 | –0.6% |
+| 0.007 | 0.784 | –0.4% |
+| 0.008 | 0.774 | –1.7% |
+| 0.009 | 0.760 | –3.5% |
+| 0.010 | 0.750 | –4.8% |
+| 0.020 | 0.734 | –6.8% |
+| 0.030 | 0.702 | –10.8% |
+| 0.040 | 0.690 | –12.4% |
+| 0.050 | 0.669 | –15.0% |
+| 0.100 | 0.590 | –25.1% |
+| 0.200 | 0.469 | –40.5% |
+
+Line score at noise=0.005 is *slightly higher* than baseline (+0.6%); at 0.006–0.007 it barely moves (<1% drop). The aligner still finds high-scoring matches even when some blocks are placed incorrectly — the score measures how well a line matched *wherever* it ended up, not whether it ended up in the right place. Block error rate (Section 3) is the earlier-warning metric.
 
 ![Per-noise line score distribution](../output/noise_benchmark/line_overlap.png)
 

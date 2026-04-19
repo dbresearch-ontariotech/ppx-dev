@@ -69,7 +69,7 @@ Use tikz to draw illustrative diagrams with captions as labeled figures.
 
 ### Step 4: Detailed generation of "Alignment Algorithms"
 
-Write the section in detail.  Use algorithm environment.  Refer to the template paper.  Provide amble amount of explanation.
+Write the section in detail by expanding the placeholder item lists with full text.  Use algorithm environment.  Refer to the template paper.  Provide amble amount of explanation.
 
 Present the algorithms in the sequence:
 
@@ -93,3 +93,52 @@ Dedicate a subsection to especially describe paddle-ocr integration with the pad
 
 Dedicate a subsection to describe the client/server architecture in `ppx-align` and `ppx-svelte` to support intelligent AI-powered Web application for advanced document reading.
 
+### Step 6: Detailed generation of Section 6 "Benchmark"
+
+Write this section in detail. Expand the placeholder item lists with full text.
+
+Use relevant tables from @docs/analysis.md to create tables to support the discussion of benchmarking in the paper.
+
+- Include the diagram of the Precision, recall, F1, and error boundary.
+- Include the diagrams for line benchmark uncorrupted
+- Include the diagram for the line benchmark with noise.
+
+### Step 7: Write the abstract
+
+Expand on the bulleted list items into a detailed and coherent abstract. The abstract will reference this new desription combined with what we already have:
+
+```
+Navigating the boundaries between vast document spaces—textbooks, papers, and articles—and abstract concepts represents the grand challenge of agentic knowledge distillation. To help humanity learn faster, AI agents need specialized tools to traverse these layers. A critical missing link is the exact alignment between raw information (source text) and structured text (Markdown), which is essential for agents to translate raw data into actionable concepts and abstractions.
+This thesis tackles this specific bottleneck by focusing on the navigation mechanism between documents and information. I introduce the Parsed Page eXplorer, a foundational tool that facilitates agentic learning through strict alignment between source text and Markdown. Establishing this foundation with semantic provenance empowers AI agents to seamlessly bridge the gap from documents to accessible information. Ultimately, this mechanism provides the foundation for highly efficient, agent-driven human knowledge distillation.
+```
+
+### Step 8: Detailed generation of Section 1: Introduction
+
+Expand the introduction section in detail. Expand the placeholder item lists with full text.
+
+In particular, ensure that an addition of the following is provided to the points already listed:
+
+- Grant challenge of agentic knowledge distillation
+- Document space (text books, papers, articles)
+- Information and text (markdown)
+- Concepts and abstractions
+- An agent needs to have tools to navigate across the boundaries of documents, information, concepts.
+- This thesis is this navigation mechanism between documents and information.
+
+
+### Step 9: Related work
+
+Expand the related work section in detail. Expand the placeholder item lists with full text.
+
+
+### Step 10: Conclusion
+
+Expand the conclusion section in detail. Expand the placeholder item lists with full text.
+
+### Step 11: Comprehensive review of the entire document
+
+The final step in diffusion is to do a comprehensive reivew of the entire document. This requires:
+
+- Checking each section for logical consistency.
+- Review algorithms, mathematical models, and benchmark results.
+- Review section by section to ensure there are no contradictions.
