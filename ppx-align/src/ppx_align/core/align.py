@@ -102,9 +102,9 @@ def align_lines(
     for i in range(len(ast_word_spans)):
         ast_idx_i = word_ast_indices[i]
         abs_start = doc.ast_spans[ast_idx_i][0] + ast_word_spans[i][0]
-        for j in range(i+1, len(ast_word_spans) + 1):
-            ast_idx_j = word_ast_indices[j-1]
-            end = ast_word_spans[j-1][1] - 1  # char_end is inclusive
+        for j in range(i, len(ast_word_spans)):
+            ast_idx_j = word_ast_indices[j]
+            end = ast_word_spans[j][1] - 1  # char_end is inclusive
             abs_end = doc.ast_spans[ast_idx_j][0] + end + 1  # +1 for slice
             span_len = abs_end - abs_start
             if span_len > max_chars:

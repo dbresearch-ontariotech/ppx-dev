@@ -56,7 +56,7 @@ def build_cmd(
     output: Path = typer.Argument(..., help="Document output directory containing page subdirectories"),
     page: Optional[int] = typer.Option(None, "--page", help="Process only this page number"),
     blocks_only: bool = typer.Option(False, "--blocks-only", help="Align blocks only, skip line alignment"),
-    tokenizer_name: str = typer.Option("treebank", "--tokenizer", help="Tokenizer to use: 'treebank' or a pretrained model name (e.g. google-bert/bert-base-chinese)"),
+    tokenizer_name: str = typer.Option("treebank", "--tokenizer", help="Tokenizer to use: 'treebank' or a pretrained model name (e.g. google-bert/bert-base-multilingual-uncased)"),
 ):
     """Build DocAlignment for all pages, or a single page with --page."""
     from rich.progress import Progress, BarColumn, TaskProgressColumn, TimeElapsedColumn, TextColumn
