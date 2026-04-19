@@ -14,7 +14,7 @@ def get_page_tensors(
     doc = fitz.open(pdf_file)
     for page in doc:
         pix = page.get_pixmap(dpi=dpi)
-        img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+        img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n).copy()
         pages.append(img)
     doc.close()
     return RasterDocument(pages=pages)
