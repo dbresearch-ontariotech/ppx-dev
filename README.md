@@ -1,9 +1,9 @@
 # ppx-dev
 
+Document analysis pipeline: OCR a PDF, build semantic alignments between the visual layout and the markdown AST, and explore the results in an interactive viewer.
+
 ![PPX Explorer Demo](./assets/ppx-document-viewer.gif)
 _Hovering over a visual token automatically highlights the corresponding markdown span, bridging the visual and semantic gap._
-
-Document analysis pipeline: OCR a PDF, build semantic alignments between the visual layout and the markdown AST, and explore the results in an interactive viewer.
 
 📄 **[Read the Full Manuscript Here](https://dbresearch-ontariotech.github.io/ppx-paper/)**
 
